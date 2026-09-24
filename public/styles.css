@@ -154,6 +154,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .sync-badge { display: inline-flex; align-items: center; gap: 6px; padding: 7px 9px; border-radius: 99px; background: #eaf8ef; color: #17854a; font-size: 10px; font-weight: 700; }
 .sync-badge i { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
 .sync-badge.syncing { background: #edf4ff; color: var(--blue); }
+.sync-badge.pending { background: #fff7df; color: #a56a00; }
 .sync-badge.error { background: #fff0f1; color: var(--red); }
 .product-card { display: flex; align-items: center; gap: 12px; margin-top: 18px; padding: 12px; border-radius: 13px; background: var(--surface-soft); }
 .product-icon { width: 48px; height: 48px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 12px; color: #fff; background: linear-gradient(145deg, var(--blue), var(--cyan)); font-size: 10px; font-weight: 800; letter-spacing: .06em; }
@@ -218,6 +219,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .modal-actions button:disabled { cursor: wait; opacity: .6; }
 .connection-note { margin-top: 13px; padding: 10px; border-radius: 9px; background: var(--surface-soft); }
 .connection-note.success { background: #eaf8ef; color: #147442; }
+.connection-note.pending { background: #fff7df; color: #8b5a00; }
 .connection-note.error { background: #fff0f1; color: #b52f3b; }
 .setup-link { display: inline-block; margin-top: 10px; color: var(--blue); font-size: 11px; font-weight: 700; text-decoration: none; }
 .setup-link:hover { text-decoration: underline; }

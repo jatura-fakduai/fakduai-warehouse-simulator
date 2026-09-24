@@ -11,4 +11,4 @@ Required GitHub Actions secrets:
 - `CLOUDFLARE_ACCOUNT_ID`
 - `CLOUDFLARE_API_TOKEN` with **Account → Cloudflare Pages → Edit** permission
 
-The workflow checks for the Pages project and creates `fakduai-warehouse-simulator` with `main` as the production branch when it does not exist, then deploys the static site.
+The workflow deploys the static site to the existing `fakduai-warehouse-simulator` Pages project.

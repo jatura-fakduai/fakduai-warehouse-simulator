@@ -792,10 +792,11 @@
     sheetStatus.textContent = text;
     syncBadge.classList.toggle("syncing", mode === "syncing");
     syncBadge.classList.toggle("error", mode === "error");
-    syncBadgeText.textContent = mode === "ready" ? "เชื่อมต่อ Google Sheet" : mode === "syncing" ? "กำลังซิงก์" : mode === "error" ? "ซิงก์ไม่สำเร็จ" : "ข้อมูลในเครื่อง";
+    syncBadge.classList.toggle("pending", mode === "pending");
+    syncBadgeText.textContent = mode === "ready" ? "เชื่อมต่อ Google Sheet" : mode === "syncing" ? "กำลังซิงก์" : mode === "pending" ? "ส่งแล้ว · รอตรวจสอบ" : mode === "error" ? "ซิงก์ไม่สำเร็จ" : "ข้อมูลในเครื่อง";
     if (detail) {
       connectionNote.textContent = detail;
-      connectionNote.className = `connection-note ${mode === "ready" ? "success" : mode === "error" ? "error" : ""}`;
+      connectionNote.className = `connection-note ${mode === "ready" ? "success" : mode === "error" ? "error" : mode === "pending" ? "pending" : ""}`;
     }
   }
 
@@ -877,15 +878,20 @@
     return updated;
   }
 
+  async function fetchSheetPayload() {
+    const requestedSheetId = sheetIdFromUrl(sheetConnection.sheetUrl);
+    if (!requestedSheetId) throw new Error("Google Sheet URL ไม่ถูกต้อง");
+    const payload = await jsonpRequest({ action: "read", key: sheetConnection.key, sheetId: requestedSheetId, _: Date.now() });
+    if (!payload || payload.ok !== true || !Array.isArray(payload.items)) throw new Error(payload?.error || "รูปแบบข้อมูลจาก Sheet ไม่ถูกต้อง");
+    if (payload.spreadsheetId && requestedSheetId !== payload.spreadsheetId) throw new Error("Web App เชื่อมกับ Google Sheet คนละไฟล์");
+    return payload;
+  }
+
   function readSheetData({ announce = true } = {}) {
     if (sheetSyncInFlight) return sheetSyncInFlight;
     sheetSyncInFlight = (async () => {
       if (announce) setSheetStatus("syncing", "กำลังโหลดข้อมูล…", "กำลังอ่าน Inventory จาก Google Sheet");
-      const requestedSheetId = sheetIdFromUrl(sheetConnection.sheetUrl);
-      if (!requestedSheetId) throw new Error("Google Sheet URL ไม่ถูกต้อง");
-      const payload = await jsonpRequest({ action: "read", key: sheetConnection.key, sheetId: requestedSheetId, _: Date.now() });
-      if (!payload || payload.ok !== true || !Array.isArray(payload.items)) throw new Error(payload?.error || "รูปแบบข้อมูลจาก Sheet ไม่ถูกต้อง");
-      if (payload.spreadsheetId && requestedSheetId !== payload.spreadsheetId) throw new Error("Web App เชื่อมกับ Google Sheet คนละไฟล์");
+      const payload = await fetchSheetPayload();
       const updated = applySheetRows(payload.items);
       if (!updated) throw new Error("ไม่พบ Location ที่ตรงกับแผนที่");
       const now = new Date().toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" });
@@ -935,16 +941,52 @@
     });
   }
 
+  function wait(milliseconds) {
+    return new Promise(resolve => setTimeout(resolve, milliseconds));
+  }
+
+  function payloadRow(payload, item) {
+    return payload?.items?.find(row => String(row.code || "").trim() === item.code)
+      || payload?.items?.find(row => String(row.sku || "").trim() === item.sku);
+  }
+
+  async function confirmSheetWrite(matches, attempts = 3) {
+    let lastError = new Error("ยังไม่พบค่าล่าสุดจาก Google Sheet");
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+      await wait(500 + attempt * 600);
+      try {
+        const payload = await fetchSheetPayload();
+        if (matches(payload)) {
+          const updated = applySheetRows(payload.items);
+          if (!updated) throw new Error("ไม่พบ Location ที่ตรงกับแผนที่");
+          return payload;
+        }
+        lastError = new Error("Google Sheet รับข้อมูลแล้ว แต่ผลอ่านกลับยังเป็นค่าเดิม");
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    throw lastError;
+  }
+
   let colorSyncTimer;
   function scheduleColorSync(item) {
     if (!sheetConnection.webAppUrl || !sheetConnection.key) return;
     clearTimeout(colorSyncTimer);
     colorSyncTimer = setTimeout(async () => {
+      const expectedColor = item.productColor.toLowerCase();
       try {
         setSheetStatus("syncing", "กำลังบันทึกสี…", `กำลังอัปเดตสีของ ${item.sku} ไปยัง Google Sheet`);
         await submitSheetForm({ action: "color", key: sheetConnection.key, sheetId: sheetIdFromUrl(sheetConnection.sheetUrl), code: item.code, sku: item.sku, color: item.productColor });
-        await new Promise(resolve => setTimeout(resolve, 450));
-        await readSheetData({ announce: false });
+        setSheetStatus("pending", "ส่งการเปลี่ยนสีแล้ว", "Google Sheet รับคำสั่งแล้ว · กำลังตรวจสอบค่าที่บันทึก");
+        try {
+          await confirmSheetWrite(payload => String(payloadRow(payload, item)?.color || "").toLowerCase() === expectedColor);
+          const now = new Date().toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" });
+          setSheetStatus("ready", `บันทึกแล้ว ${now}`, `ยืนยันสีของ ${item.sku} ใน Google Sheet แล้ว`);
+        } catch (error) {
+          const nextStep = autoSyncEnabled ? "Auto Sync จะตรวจสอบให้อีกครั้ง" : "กด Refresh เพื่อตรวจสอบอีกครั้ง";
+          setSheetStatus("pending", "ส่งการเปลี่ยนสีแล้ว", `${error.message} · ${nextStep}`);
+        }
       } catch (error) {
         setSheetStatus("error", "บันทึกสีไม่สำเร็จ", error.message);
       }
@@ -953,11 +995,19 @@
 
   async function pushStockToSheet(job) {
     if (!sheetConnection.webAppUrl || !sheetConnection.key) return;
+    const expectedStock = job.item.stock;
     try {
       setSheetStatus("syncing", "กำลังบันทึก Stock…", `กำลังส่ง ${job.item.sku} ${job.delta > 0 ? "+" : ""}${job.delta} ไปยัง Google Sheet`);
       await submitSheetUpdate(job);
-      await new Promise(resolve => setTimeout(resolve, 500));
-      await readSheetData({ announce: false });
+      setSheetStatus("pending", "ส่งคำสั่งอัปเดตแล้ว", "Google Sheet รับคำสั่งแล้ว · กำลังตรวจสอบ Stock ที่บันทึก");
+      try {
+        await confirmSheetWrite(payload => Number(payloadRow(payload, job.item)?.stock) === expectedStock);
+        const now = new Date().toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" });
+        setSheetStatus("ready", `บันทึกแล้ว ${now}`, `ยืนยัน Stock ${job.item.sku} = ${expectedStock} ใน Google Sheet แล้ว`);
+      } catch (error) {
+        const nextStep = autoSyncEnabled ? "Auto Sync จะตรวจสอบให้อีกครั้ง" : "กด Refresh เพื่อตรวจสอบอีกครั้ง";
+        setSheetStatus("pending", "ส่งคำสั่งอัปเดตแล้ว", `${error.message} · ${nextStep}`);
+      }
     } catch (error) {
       setSheetStatus("error", "บันทึกไม่สำเร็จ", `${error.message} · ค่าในหน้าจอยังไม่ถูกส่งไป Google Sheet`);
     }
