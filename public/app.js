@@ -785,6 +785,7 @@
   let queueStatusTimer = null;
   let autoSyncTimer = null;
   let autoSyncFailures = 0;
+  let hasSuccessfulSheetSync = false;
   const savedAutoSync = localStorage.getItem("warehouse-auto-sync");
   let autoSyncEnabled = savedAutoSync === null ? true : savedAutoSync === "true";
   const queueWorkerId = localStorage.getItem("warehouse-worker-id") || `SIM-${Math.random().toString(36).slice(2, 10).toUpperCase()}`;
@@ -809,11 +810,11 @@
     sheetStatus.textContent = text;
     syncBadge.classList.toggle("syncing", mode === "syncing");
     syncBadge.classList.toggle("error", mode === "error");
-    syncBadge.classList.toggle("pending", mode === "pending");
-    syncBadgeText.textContent = mode === "ready" ? "เชื่อมต่อ Google Sheet" : mode === "syncing" ? "กำลังซิงก์" : mode === "pending" ? "ส่งแล้ว · รอตรวจสอบ" : mode === "error" ? "ซิงก์ไม่สำเร็จ" : "ข้อมูลในเครื่อง";
+    syncBadge.classList.toggle("pending", mode === "pending" || mode === "retrying");
+    syncBadgeText.textContent = mode === "ready" ? "เชื่อมต่อ Google Sheet" : mode === "syncing" ? "กำลังซิงก์" : mode === "retrying" ? "เชื่อมต่อแล้ว · กำลังลองใหม่" : mode === "pending" ? "ส่งแล้ว · รอตรวจสอบ" : mode === "error" ? "ซิงก์ไม่สำเร็จ" : "ข้อมูลในเครื่อง";
     if (detail) {
       connectionNote.textContent = detail;
-      connectionNote.className = `connection-note ${mode === "ready" ? "success" : mode === "error" ? "error" : mode === "pending" ? "pending" : ""}`;
+      connectionNote.className = `connection-note ${mode === "ready" ? "success" : mode === "error" ? "error" : mode === "pending" || mode === "retrying" ? "pending" : ""}`;
     }
   }
 
@@ -859,8 +860,10 @@
           autoSyncFailures = 0;
         } catch (error) {
           autoSyncFailures = Math.min(2, autoSyncFailures + 1);
-          if (autoSyncFailures < 2) {
-            setSheetStatus("pending", "Auto Sync กำลังลองใหม่", `${error.message} · การเชื่อมต่อก่อนหน้ายังใช้งานได้`);
+          if (hasSuccessfulSheetSync) {
+            setSheetStatus("retrying", "Auto Sync กำลังลองใหม่", `${error.message} · ข้อมูลที่โหลดสำเร็จก่อนหน้ายังใช้งานได้`);
+          } else if (autoSyncFailures < 2) {
+            setSheetStatus("retrying", "กำลังลองเชื่อมต่อใหม่", error.message);
           } else {
             setSheetStatus("error", "Auto Sync ไม่สำเร็จ", error.message);
           }
@@ -931,6 +934,7 @@
       const payload = await fetchSheetPayload();
       const updated = applySheetRows(payload.items);
       if (!updated) throw new Error("ไม่พบ Location ที่ตรงกับแผนที่");
+      hasSuccessfulSheetSync = true;
       const now = new Date().toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" });
       setSheetStatus("ready", `ซิงก์แล้ว ${now}`, `เชื่อมต่อสำเร็จ · โหลด ${updated} ตำแหน่งจาก ${payload.sheetName || "Inventory"}`);
       return payload;
