@@ -8,7 +8,7 @@ const CONFIG = Object.freeze({
   INVENTORY_SHEET: "Inventory",
   TRANSACTIONS_SHEET: "Transactions",
   TRANSACTION_HEADERS: [
-    "Operation ID", "Created At", "Type", "Location", "SKU", "Quantity",
+    "Operation ID", "Timestamp", "Type", "Location", "SKU", "Quantity",
     "Balance", "Status", "Started At", "Completed At", "Message", "Source", "Worker"
   ]
 });
@@ -340,9 +340,9 @@ function ensureTransactionsStructure_(sheet) {
   if (sheet.getLastRow() === 0) sheet.appendRow(CONFIG.TRANSACTION_HEADERS);
   let headers = sheet.getRange(1, 1, 1, Math.max(1, sheet.getLastColumn())).getValues()[0];
   const normalized = headers.map(normalizeHeader_);
-  const timestampIndex = normalized.indexOf("timestamp");
-  if (timestampIndex >= 0 && normalized.indexOf("createdat") < 0) {
-    sheet.getRange(1, timestampIndex + 1).setValue("Created At");
+  const createdAtIndex = normalized.indexOf("createdat");
+  if (createdAtIndex >= 0 && normalized.indexOf("timestamp") < 0) {
+    sheet.getRange(1, createdAtIndex + 1).setValue("Timestamp");
   }
   headers = sheet.getRange(1, 1, 1, Math.max(1, sheet.getLastColumn())).getValues()[0];
   const existing = headers.map(normalizeHeader_);
@@ -383,7 +383,7 @@ function setTransactionFields_(sheet, rowNumber, indexes, fields) {
 function transactionIndexes_(headers) {
   const normalized = headers.map(normalizeHeader_);
   const required = {
-    operationId: "operationid", createdAt: "createdat", type: "type", location: "location",
+    operationId: "operationid", createdAt: "timestamp", type: "type", location: "location",
     sku: "sku", quantity: "quantity", balance: "balance", status: "status",
     startedAt: "startedat", completedAt: "completedat", message: "message", source: "source", worker: "worker"
   };

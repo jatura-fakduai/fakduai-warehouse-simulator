@@ -26,7 +26,7 @@ Stock จะยังไม่เปลี่ยนตอน Chat สร้า�
 | Column | ความหมาย |
 |---|---|
 | Operation ID | รหัสงานที่ไม่ซ้ำกัน |
-| Created At | เวลาสร้างงาน |
+| Timestamp | เวลาสร้างงาน |
 | Type | `IN` หรือ `OUT` |
 | Location | ตำแหน่ง Rack |
 | SKU | รหัสสินค้า |

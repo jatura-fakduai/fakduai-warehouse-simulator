@@ -121,7 +121,7 @@
           "mappingMode": "defineBelow",
           "value": {
             "Operation ID": "={{ 'AGV-' + $execution.id + '-' + $now.toMillis() }}",
-            "Created At": "={{ $now.toISO() }}",
+            "Timestamp": "={{ $now.toISO() }}",
             "Type": "={{ $fromAI('type', 'IN สำหรับรับเข้า หรือ OUT สำหรับเบิกและจ่ายออก', 'string') }}",
             "Location": "={{ $fromAI('location', 'Location ที่ตรวจพบใน Inventory เช่น B2-03', 'string') }}",
             "SKU": "={{ $fromAI('sku', 'รหัส SKU ที่ตรวจพบใน Inventory เช่น A001', 'string') }}",
@@ -137,7 +137,7 @@
           "matchingColumns": [],
           "schema": [
             { "id": "Operation ID", "displayName": "Operation ID", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
-            { "id": "Created At", "displayName": "Created At", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": false },
+            { "id": "Timestamp", "displayName": "Timestamp", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": false },
             { "id": "Type", "displayName": "Type", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": false },
             { "id": "Location", "displayName": "Location", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": false },
             { "id": "SKU", "displayName": "SKU", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": false },
