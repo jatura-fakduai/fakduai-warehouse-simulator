@@ -39,18 +39,21 @@ Stock จะยังไม่เปลี่ยนตอน Chat สร้า�
 | Source | แหล่งคำสั่ง เช่น `N8N_CHAT` |
 | Worker | Simulator ที่รับงาน |
 
-## 2. Import n8n Workflow v3
+## 2. Import n8n Workflow v4
 
 Import ไฟล์:
 
-`Fakduai-Warehouse-Chatbot-v3-AGV-Queue.json`
+`Fakduai-Warehouse-Chatbot-v4-Direct-Sheets.json`
 
 จากนั้นตั้งค่า:
 
 1. OpenAI Credential ใน `OpenAI Chat Model`
 2. Google Sheets Credential ใน `Inventory Lookup`
-3. ตรวจ Spreadsheet และแท็บ `Inventory`
-4. Save Workflow
+3. Google Sheets Credential ใน `Create AGV Job`
+4. ตรวจ Spreadsheet และแท็บ `Inventory` / `Transactions`
+5. Save Workflow
+
+Workflow v4 จะ Append งาน `PENDING` ลง `Transactions` โดยตรงผ่าน Google Sheets Node หลังผู้ใช้ยืนยัน ไม่ได้เรียก Apps Script เพื่อสร้างงาน ส่วน Apps Script ยังทำหน้าที่ให้ Simulator Claim งาน ปิดงาน และอัปเดต Stock หลัง Animation จบ
 
 ## 3. เปิด Simulator
 
@@ -81,5 +84,6 @@ AI ควรสรุปงานและถามยืนยัน ให้�
 ## หมายเหตุ
 
 - อย่าแก้ Stock โดยตรงจาก n8n สำหรับคำสั่ง AGV
+- อย่าเพิ่ม Google Sheets Node ที่เขียน `Inventory` ใน Workflow เดียวกัน เพราะ Simulator จะเป็นผู้คำนวณ Stock ตอนปิดงาน
 - หาก Auto Sync ปิดอยู่ งานจะค้างที่ `PENDING` จนกด Refresh หรือเปิด Auto Sync
 - หาก SKU ไม่มีบนแผนที่ งานจะเปลี่ยนเป็น `FAILED`

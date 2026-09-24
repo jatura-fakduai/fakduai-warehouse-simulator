@@ -9,7 +9,7 @@ The simulator can claim jobs created by the n8n chat workflow from the Google Sh
 Setup files:
 
 - `google-apps-script/Code.gs`
-- `n8n/Fakduai-Warehouse-Chatbot-v3-AGV-Queue.json`
+- `n8n/Fakduai-Warehouse-Chatbot-v4-Direct-Sheets.json`
 - `AGV_QUEUE_SETUP.md`
 
 ## Deployment
