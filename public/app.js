@@ -770,6 +770,7 @@
   const autoSyncState = document.getElementById("auto-sync-state");
   let sheetSyncInFlight = null;
   let autoSyncTimer = null;
+  let autoSyncFailures = 0;
   let autoSyncEnabled = localStorage.getItem("warehouse-auto-sync") === "true";
   const sheetConnection = {
     sheetUrl: localStorage.getItem("warehouse-sheet-url") || "",
@@ -814,12 +815,16 @@
     autoSyncTimer = null;
     updateSyncControls();
     if (!autoSyncEnabled || !sheetIdFromUrl(sheetConnection.sheetUrl)) return;
-    const wait = delay ?? 25000 + Math.random() * 10000;
+    const wait = delay ?? (autoSyncFailures
+      ? Math.min(60000, 30000 * Math.pow(2, autoSyncFailures - 1))
+      : 8000 + Math.random() * 4000);
     autoSyncTimer = setTimeout(async () => {
       if (document.visibilityState === "visible" && !state.agv) {
         try {
           await readSheetData({ announce: false });
+          autoSyncFailures = 0;
         } catch (error) {
+          autoSyncFailures = Math.min(2, autoSyncFailures + 1);
           setSheetStatus("error", "Auto Sync ไม่สำเร็จ", error.message);
         }
       }
@@ -969,6 +974,7 @@
   });
   autoSyncButton.addEventListener("click", () => {
     autoSyncEnabled = !autoSyncEnabled;
+    autoSyncFailures = 0;
     localStorage.setItem("warehouse-auto-sync", String(autoSyncEnabled));
     scheduleAutoSync(autoSyncEnabled ? 1200 : undefined);
   });
