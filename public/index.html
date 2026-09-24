@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#eef4fb" />
+  <title>AI Warehouse Simulator — Fakduai Lab</title>
+  <link rel="stylesheet" href="styles.css?v=22" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="#" aria-label="Fakduai Lab Warehouse Simulator">
+        <img src="assets/fakduai-mark.svg" alt="" />
+        <span><strong>AI Warehouse Simulator</strong><small>Fakduai Lab Workshop</small></span>
+      </a>
+
+      <form class="product-search" id="product-search">
+        <span class="search-icon" aria-hidden="true">⌕</span>
+        <label class="sr-only" for="product-select">เลือกสินค้า</label>
+        <select id="product-select"></select>
+        <button type="submit">แสดงตำแหน่ง</button>
+      </form>
+
+      <button class="sheet-button" id="open-sheet-settings" type="button">
+        <span class="sheet-icon" aria-hidden="true">▦</span>
+        <span><strong>Workshop Data</strong><small id="sheet-status">ใช้ข้อมูลตัวอย่าง</small></span>
+      </button>
+    </header>
+
+    <main class="workspace">
+      <section class="map-panel">
+        <div class="canvas-frame" id="canvas-frame">
+          <canvas id="warehouse-canvas" aria-label="แผนผังคลังสินค้าแบบ isometric"></canvas>
+          <div class="map-overlay-top">
+            <div class="map-title-floating">
+              <h1>Warehouse Overview</h1>
+              <p>แตะหรือเลื่อนเมาส์บนชั้นวางเพื่อดูข้อมูลสินค้า</p>
+            </div>
+            <div class="map-actions" aria-label="เครื่องมือแผนที่">
+              <button id="zoom-out" type="button" aria-label="ย่อแผนที่">−</button>
+              <button id="zoom-in" type="button" aria-label="ขยายแผนที่">＋</button>
+              <button id="reset-view" class="fit-view" type="button" aria-label="ปรับแผนที่ให้พอดีจอ" title="พอดีจอ">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5" /></svg>
+              </button>
+            </div>
+          </div>
+          <div class="map-tooltip" id="map-tooltip" hidden></div>
+          <div class="map-result" id="map-result" aria-live="polite">
+            <span class="pin-dot">●</span>
+            <span><strong id="result-title">A001 อยู่ที่ B2-03</strong><small id="result-detail">UHT Milk · 50 ชิ้น</small></span>
+          </div>
+          <div class="map-legend" aria-label="คำอธิบายแผนที่">
+            <span><i class="legend-dot"></i>Rack ปกติ</span>
+            <span><i class="legend-dot selected"></i>ตำแหน่งที่เลือก</span>
+          </div>
+        </div>
+      </section>
+
+      <aside class="sidebar">
+        <section class="detail-panel">
+          <div class="detail-heading">
+            <div>
+              <div class="eyebrow">SELECTED LOCATION</div>
+              <h2 id="location-code">B2-03</h2>
+            </div>
+            <span class="sync-badge" id="sync-badge"><i></i><span id="sync-badge-text">ข้อมูลในเครื่อง</span></span>
+          </div>
+
+          <div class="product-card">
+            <div class="product-icon" id="product-icon">MILK</div>
+            <div><strong id="product-name">UHT Milk</strong><small id="product-sku">SKU A001 · Dairy</small></div>
+          </div>
+
+          <div class="product-color-row">
+            <div><strong>สีสินค้าในแผนที่</strong><small>แยก SKU ให้มองเห็นง่ายขึ้น</small></div>
+            <label class="color-picker" for="product-color"><span id="color-preview"></span><input id="product-color" type="color" value="#69a7ff" aria-label="เลือกสีสินค้า" /></label>
+          </div>
+
+          <div class="stock-block">
+            <span>Stock คงเหลือ</span>
+            <div><strong id="stock-value">50</strong><em>ชิ้น</em></div>
+          </div>
+          <div class="stock-meter" role="progressbar" aria-label="Stock capacity"><span id="stock-meter"></span></div>
+          <div class="capacity-row"><span>0</span><span id="capacity-value">Capacity 100</span></div>
+
+          <div class="operation-label">Warehouse Operation</div>
+          <div class="operation-grid">
+            <button class="receive" id="receive-stock" type="button"><span>＋</span> Receive 20</button>
+            <button class="pick" id="pick-stock" type="button"><span>−</span> Pick 10</button>
+          </div>
+        </section>
+
+        <section class="activity-panel">
+          <div class="activity-head"><h2>Activity Log</h2><button id="clear-log" type="button">ล้างรายการ</button></div>
+          <div class="activity-list" id="activity-list" aria-live="polite"></div>
+        </section>
+      </aside>
+    </main>
+  </div>
+
+  <div class="modal-backdrop" id="sheet-modal" hidden>
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="sheet-modal-title">
+      <div class="modal-head">
+        <div><span class="sheet-logo">▦</span><div><h2 id="sheet-modal-title">เชื่อมต่อ Google Sheet</h2><p>ใช้ข้อมูลของแต่ละกลุ่มกับ Warehouse Simulator</p></div></div>
+        <button id="close-sheet-settings" type="button" aria-label="ปิด">×</button>
+      </div>
+      <label for="sheet-url">Google Sheet URL</label>
+      <input id="sheet-url" type="url" placeholder="https://docs.google.com/spreadsheets/d/.../edit" />
+      <p class="permission-note">ใช้ลิงก์ Sheet ที่ Fakduai Lab เตรียมให้แต่ละกลุ่ม ระบบจะโหลดข้อมูลและบันทึก Stock กลับให้อัตโนมัติ</p>
+      <div class="modal-actions">
+        <button class="secondary" id="use-demo-data" type="button">ใช้ข้อมูลตัวอย่าง</button>
+        <button class="primary" id="connect-sheet" type="button">เชื่อมต่อ Google Sheet</button>
+      </div>
+      <div class="connection-note" id="connection-note">วางลิงก์ Google Sheet ของกลุ่ม แล้วกดเชื่อมต่อได้ทันที</div>
+    </section>
+  </div>
+
+  <script src="app.js?v=24"></script>
+</body>
+</html>
