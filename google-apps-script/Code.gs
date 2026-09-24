@@ -153,9 +153,16 @@ function claimNextJob_(params) {
     const values = sheet.getDataRange().getValues();
     const indexes = transactionIndexes_(values[0]);
     const requestedOperationId = String(params.operationId || "").trim();
-    const rowIndex = values.findIndex((row, index) => index > 0
+    let rowIndex = values.findIndex((row, index) => index > 0
       && String(row[indexes.status]).trim().toUpperCase() === "PENDING"
       && (!requestedOperationId || String(row[indexes.operationId]).trim() === requestedOperationId));
+    if (rowIndex < 1 && !requestedOperationId) {
+      const staleBefore = Date.now() - (2 * 60 * 1000);
+      rowIndex = values.findIndex((row, index) => index > 0
+        && String(row[indexes.status]).trim().toUpperCase() === "RUNNING"
+        && row[indexes.startedAt] instanceof Date
+        && row[indexes.startedAt].getTime() < staleBefore);
+    }
     if (rowIndex < 1) return { ok: true, job: null };
 
     const startedAt = new Date();
