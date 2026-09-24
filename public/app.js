@@ -1056,6 +1056,7 @@
 
   async function completeQueuedJob(job) {
     queueCompletionInFlight = true;
+    let completed = false;
     updateSyncControls();
     try {
       setQueueStatus("running", `AGV ถึงจุดจอดแล้ว`, `กำลังปิดงาน ${job.operationId} และอัปเดต Google Sheet`);
@@ -1086,12 +1087,22 @@
       setQueueStatus("completed", `งาน ${job.operationId} เสร็จแล้ว`, `${action} ${job.item.sku} จำนวน ${Math.abs(job.delta)} · คงเหลือ ${job.item.stock}`, 7000);
       const now = new Date().toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" });
       setSheetStatus("ready", `ซิงก์แล้ว ${now}`, `AGV อัปเดต Stock และปิดงาน ${job.operationId} แล้ว`);
+      completed = true;
     } catch (error) {
       setQueueStatus("error", `ปิดงาน ${job.operationId} ไม่สำเร็จ`, `${error.message} · ระบบจะลองใหม่เมื่อ Refresh`, 10000);
       setSheetStatus("error", "อัปเดตงาน AGV ไม่สำเร็จ", error.message);
     } finally {
       queueCompletionInFlight = false;
       updateSyncControls();
+      if (completed) {
+        await wait(900);
+        try {
+          await readSheetData({ announce: false });
+          await checkQueuedJobsSafely();
+        } catch (error) {
+          setSheetStatus("retrying", "ปิดงานแล้ว · กำลังโหลดคิวถัดไป", error.message);
+        }
+      }
       scheduleAutoSync(1800);
     }
   }

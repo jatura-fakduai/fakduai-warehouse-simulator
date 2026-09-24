@@ -153,6 +153,19 @@ function claimNextJob_(params) {
     const values = sheet.getDataRange().getValues();
     const indexes = transactionIndexes_(values[0]);
     const requestedOperationId = String(params.operationId || "").trim();
+    const worker = String(params.worker || "WAREHOUSE_SIMULATOR").trim();
+
+    // A claim may reach Sheets even if the JSONP response is lost. Resume the
+    // same worker's RUNNING job before claiming another row so jobs stay serial.
+    if (!requestedOperationId) {
+      const runningRowIndex = values.findIndex((row, index) => index > 0
+        && String(row[indexes.status]).trim().toUpperCase() === "RUNNING"
+        && String(row[indexes.worker] || "").trim() === worker);
+      if (runningRowIndex > 0) {
+        return { ok: true, resumed: true, job: transactionFromRow_(values[runningRowIndex], indexes) };
+      }
+    }
+
     let rowIndex = values.findIndex((row, index) => index > 0
       && String(row[indexes.status]).trim().toUpperCase() === "PENDING"
       && (!requestedOperationId || String(row[indexes.operationId]).trim() === requestedOperationId));
@@ -168,12 +181,12 @@ function claimNextJob_(params) {
     const startedAt = new Date();
     sheet.getRange(rowIndex + 1, indexes.status + 1).setValue("RUNNING");
     sheet.getRange(rowIndex + 1, indexes.startedAt + 1).setValue(startedAt);
-    sheet.getRange(rowIndex + 1, indexes.worker + 1).setValue(String(params.worker || "WAREHOUSE_SIMULATOR"));
+    sheet.getRange(rowIndex + 1, indexes.worker + 1).setValue(worker);
     sheet.getRange(rowIndex + 1, indexes.message + 1).setValue("AGV is running");
     SpreadsheetApp.flush();
     values[rowIndex][indexes.status] = "RUNNING";
     values[rowIndex][indexes.startedAt] = startedAt;
-    values[rowIndex][indexes.worker] = String(params.worker || "WAREHOUSE_SIMULATOR");
+    values[rowIndex][indexes.worker] = worker;
     values[rowIndex][indexes.message] = "AGV is running";
     return { ok: true, job: transactionFromRow_(values[rowIndex], indexes) };
   } finally {
