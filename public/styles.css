@@ -86,6 +86,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .auto-control.active i { background: #20a45c; box-shadow: 0 0 0 3px rgba(32,164,92,.16); }
 .auto-control.active strong { color: #147442; }
 @keyframes spin { to { transform: rotate(360deg); } }
+@keyframes pulse { 50% { transform: scale(.72); opacity: .58; } }
 
 .workspace { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 16px; margin-top: 16px; }
 .map-panel, .detail-panel, .activity-panel { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); }
@@ -142,6 +143,18 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .map-result strong, .map-result small { display: block; }
 .map-result strong { font-size: 13px; }
 .map-result small { margin-top: 2px; color: var(--muted); font-size: 11px; }
+.queue-status { position: absolute; z-index: 9; top: 84px; left: 16px; display: flex; align-items: center; gap: 10px; max-width: calc(100% - 32px); padding: 10px 13px; border: 1px solid #f1d28f; border-radius: 12px; background: rgba(255,248,230,.95); color: #815200; box-shadow: 0 14px 34px rgba(20,50,83,.13); backdrop-filter: blur(10px); }
+.queue-status[hidden] { display: none; }
+.queue-status > i { width: 10px; height: 10px; flex: 0 0 auto; border-radius: 50%; background: #e79218; box-shadow: 0 0 0 5px rgba(231,146,24,.14); }
+.queue-status strong, .queue-status small { display: block; }
+.queue-status strong { font-size: 12px; }
+.queue-status small { margin-top: 2px; color: currentColor; opacity: .75; font-size: 10px; }
+.queue-status.running { border-color: #9ec0ed; background: rgba(237,244,255,.96); color: var(--blue); }
+.queue-status.running > i { background: var(--blue); box-shadow: 0 0 0 5px rgba(7,87,213,.13); animation: pulse 1s ease-in-out infinite; }
+.queue-status.completed { border-color: #a9dfbd; background: rgba(234,248,239,.96); color: #147442; }
+.queue-status.completed > i { background: var(--green); box-shadow: 0 0 0 5px rgba(32,164,92,.13); }
+.queue-status.error { border-color: #efb5bb; background: rgba(255,240,241,.96); color: #b52f3b; }
+.queue-status.error > i { background: var(--red); box-shadow: 0 0 0 5px rgba(209,55,69,.12); }
 .map-legend { position: absolute; right: 15px; bottom: 15px; display: flex; gap: 12px; padding: 8px 10px; border-radius: 10px; background: rgba(255,255,255,.78); color: var(--muted); backdrop-filter: blur(8px); font-size: 10px; }
 .map-legend span { display: flex; align-items: center; gap: 5px; }
 .legend-dot { width: 8px; height: 8px; border-radius: 50%; background: #929da8; }

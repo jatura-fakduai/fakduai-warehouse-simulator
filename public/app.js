@@ -618,12 +618,16 @@
     }).join("");
   }
 
-  function startAgvJob(delta, type) {
-    if (state.agv) return;
-    const item = locations.find(entry => entry.code === state.selected);
+  function startAgvJob(delta, type, queuedJob = null) {
+    if (state.agv) return false;
+    const item = queuedJob
+      ? locations.find(entry => entry.code === queuedJob.location) || locations.find(entry => entry.sku === queuedJob.sku)
+      : locations.find(entry => entry.code === state.selected);
+    if (!item) return false;
+    if (queuedJob) selectLocation(item.code, true);
     const next = Math.max(0, Math.min(item.capacity, item.stock + delta));
     const actual = next - item.stock;
-    if (!actual) return;
+    if (!actual || (queuedJob && actual !== delta)) return false;
     const now = performance.now();
     const loadingDelay = type === "in" ? 950 : 0;
     const start = type === "in" ? { col: 16.65, row: 12.35 } : { col: 16.65, row: 1.55 };
@@ -648,7 +652,8 @@
     });
     state.agv = {
       type, item, delta: actual, route, segments, totalDistance,
-      operationId: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      operationId: queuedJob?.operationId || (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`),
+      queueManaged: Boolean(queuedJob),
       targetSegment: 3,
       startedAt: now + loadingDelay,
       duration: Math.max(4600, totalDistance * 230),
@@ -662,6 +667,8 @@
     updateSyncControls();
     document.getElementById("result-title").textContent = type === "in" ? `AGV กำลังนำ ${item.sku} เข้าชั้น` : `AGV กำลังไปรับ ${item.sku}`;
     document.getElementById("result-detail").textContent = `${type === "in" ? "INBOUND" : "OUTBOUND"} → ${item.code}`;
+    if (queuedJob) setQueueStatus("running", `AGV รับงาน ${queuedJob.operationId}`, `${type === "in" ? "RECEIVE" : "PICK"} ${item.sku} จำนวน ${Math.abs(actual)} · ${item.code}`);
+    return true;
   }
 
   function applyAgvStock(job) {
@@ -669,7 +676,7 @@
     job.item.stock = Math.max(0, Math.min(job.item.capacity, job.item.stock + job.delta));
     addActivity(job.type, job.item, job.delta);
     selectLocation(job.item.code);
-    pushStockToSheet(job);
+    if (!job.queueManaged) pushStockToSheet(job);
   }
 
   function finishAgvJob() {
@@ -685,6 +692,7 @@
     document.getElementById("receive-stock").disabled = false;
     document.getElementById("pick-stock").disabled = false;
     updateSyncControls();
+    if (job.queueManaged) completeQueuedJob(job);
   }
 
   function renderProductOptions() {
@@ -768,10 +776,19 @@
   const manualSyncButton = document.getElementById("manual-sync");
   const autoSyncButton = document.getElementById("toggle-auto-sync");
   const autoSyncState = document.getElementById("auto-sync-state");
+  const queueStatus = document.getElementById("queue-status");
+  const queueStatusTitle = document.getElementById("queue-status-title");
+  const queueStatusDetail = document.getElementById("queue-status-detail");
   let sheetSyncInFlight = null;
+  let queueCheckInFlight = null;
+  let queueCompletionInFlight = false;
+  let queueStatusTimer = null;
   let autoSyncTimer = null;
   let autoSyncFailures = 0;
-  let autoSyncEnabled = localStorage.getItem("warehouse-auto-sync") === "true";
+  const savedAutoSync = localStorage.getItem("warehouse-auto-sync");
+  let autoSyncEnabled = savedAutoSync === null ? true : savedAutoSync === "true";
+  const queueWorkerId = localStorage.getItem("warehouse-worker-id") || `SIM-${Math.random().toString(36).slice(2, 10).toUpperCase()}`;
+  localStorage.setItem("warehouse-worker-id", queueWorkerId);
   const sheetConnection = {
     sheetUrl: localStorage.getItem("warehouse-sheet-url") || "",
     webAppUrl: CENTRAL_SHEET_CONNECTOR.webAppUrl,
@@ -800,10 +817,25 @@
     }
   }
 
+  function setQueueStatus(mode, title, detail, autoHide = 0) {
+    clearTimeout(queueStatusTimer);
+    queueStatus.hidden = false;
+    queueStatus.className = `queue-status ${mode || ""}`.trim();
+    queueStatusTitle.textContent = title;
+    queueStatusDetail.textContent = detail;
+    if (autoHide) queueStatusTimer = setTimeout(() => { queueStatus.hidden = true; }, autoHide);
+  }
+
+  function hideQueueStatus() {
+    if (state.agv || queueStatus.classList.contains("completed") || queueStatus.classList.contains("error")) return;
+    clearTimeout(queueStatusTimer);
+    queueStatus.hidden = true;
+  }
+
   function updateSyncControls() {
     const connected = Boolean(sheetIdFromUrl(sheetConnection.sheetUrl));
     const busy = Boolean(sheetSyncInFlight);
-    manualSyncButton.disabled = !connected || busy || Boolean(state.agv);
+    manualSyncButton.disabled = !connected || busy || Boolean(state.agv) || queueCompletionInFlight;
     manualSyncButton.classList.toggle("syncing", busy);
     autoSyncButton.disabled = !connected;
     autoSyncButton.classList.toggle("active", autoSyncEnabled && connected);
@@ -817,12 +849,13 @@
     updateSyncControls();
     if (!autoSyncEnabled || !sheetIdFromUrl(sheetConnection.sheetUrl)) return;
     const wait = delay ?? (autoSyncFailures
-      ? Math.min(60000, 30000 * Math.pow(2, autoSyncFailures - 1))
-      : 8000 + Math.random() * 4000);
+      ? Math.min(30000, 8000 * Math.pow(2, autoSyncFailures - 1))
+      : 2500 + Math.random() * 1000);
     autoSyncTimer = setTimeout(async () => {
-      if (document.visibilityState === "visible" && !state.agv) {
+      if (document.visibilityState === "visible" && !state.agv && !queueCompletionInFlight) {
         try {
           await readSheetData({ announce: false });
+          await checkQueuedJobs();
           autoSyncFailures = 0;
         } catch (error) {
           autoSyncFailures = Math.min(2, autoSyncFailures + 1);
@@ -969,6 +1002,83 @@
     throw lastError;
   }
 
+  async function checkQueuedJobs() {
+    if (queueCheckInFlight) return queueCheckInFlight;
+    if (state.agv || queueCompletionInFlight || !sheetIdFromUrl(sheetConnection.sheetUrl)) return null;
+    queueCheckInFlight = (async () => {
+      const payload = await jsonpRequest({
+        action: "claim",
+        key: sheetConnection.key,
+        sheetId: sheetIdFromUrl(sheetConnection.sheetUrl),
+        worker: queueWorkerId,
+        _: Date.now()
+      });
+      if (!payload || payload.ok !== true) throw new Error(payload?.error || "โหลดคิวงานไม่สำเร็จ");
+      if (!payload.job) { hideQueueStatus(); return null; }
+
+      const queuedJob = payload.job;
+      const type = queuedJob.type === "IN" ? "in" : "out";
+      const delta = type === "in" ? Number(queuedJob.quantity) : -Number(queuedJob.quantity);
+      const started = startAgvJob(delta, type, queuedJob);
+      if (!started) {
+        await jsonpRequest({
+          action: "fail",
+          key: sheetConnection.key,
+          sheetId: sheetIdFromUrl(sheetConnection.sheetUrl),
+          operationId: queuedJob.operationId,
+          message: "ไม่พบ Location หรือจำนวนสินค้าไม่สอดคล้องกับแผนที่",
+          _: Date.now()
+        });
+        setQueueStatus("error", `งาน ${queuedJob.operationId} เริ่มไม่ได้`, `${queuedJob.sku} · ${queuedJob.location}`, 7000);
+        return null;
+      }
+      return queuedJob;
+    })();
+    return queueCheckInFlight.finally(() => { queueCheckInFlight = null; });
+  }
+
+  async function completeQueuedJob(job) {
+    queueCompletionInFlight = true;
+    updateSyncControls();
+    try {
+      setQueueStatus("running", `AGV ถึงจุดจอดแล้ว`, `กำลังปิดงาน ${job.operationId} และอัปเดต Google Sheet`);
+      let payload;
+      let lastError;
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          payload = await jsonpRequest({
+            action: "complete",
+            key: sheetConnection.key,
+            sheetId: sheetIdFromUrl(sheetConnection.sheetUrl),
+            operationId: job.operationId,
+            worker: queueWorkerId,
+            _: Date.now()
+          });
+          if (!payload || payload.ok !== true) throw new Error(payload?.error || "ปิดงาน AGV ไม่สำเร็จ");
+          lastError = null;
+          break;
+        } catch (error) {
+          lastError = error;
+          if (attempt < 2) await wait(1200 + attempt * 1200);
+        }
+      }
+      if (lastError) throw lastError;
+      if (Number.isFinite(Number(payload.balance))) job.item.stock = Number(payload.balance);
+      selectLocation(job.item.code);
+      const action = job.type === "in" ? "รับเข้า" : "จ่ายออก";
+      setQueueStatus("completed", `งาน ${job.operationId} เสร็จแล้ว`, `${action} ${job.item.sku} จำนวน ${Math.abs(job.delta)} · คงเหลือ ${job.item.stock}`, 7000);
+      const now = new Date().toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" });
+      setSheetStatus("ready", `ซิงก์แล้ว ${now}`, `AGV อัปเดต Stock และปิดงาน ${job.operationId} แล้ว`);
+    } catch (error) {
+      setQueueStatus("error", `ปิดงาน ${job.operationId} ไม่สำเร็จ`, `${error.message} · ระบบจะลองใหม่เมื่อ Refresh`, 10000);
+      setSheetStatus("error", "อัปเดตงาน AGV ไม่สำเร็จ", error.message);
+    } finally {
+      queueCompletionInFlight = false;
+      updateSyncControls();
+      scheduleAutoSync(1800);
+    }
+  }
+
   let colorSyncTimer;
   function scheduleColorSync(item) {
     if (!sheetConnection.webAppUrl || !sheetConnection.key) return;
@@ -1018,6 +1128,7 @@
   manualSyncButton.addEventListener("click", async () => {
     try {
       await readSheetData();
+      await checkQueuedJobs();
     } catch (error) {
       setSheetStatus("error", "Refresh ไม่สำเร็จ", error.message);
     }
@@ -1038,9 +1149,12 @@
     }
     sheetConnection.sheetUrl = next.sheetUrl;
     localStorage.setItem("warehouse-sheet-url", next.sheetUrl);
+    autoSyncEnabled = true;
+    localStorage.setItem("warehouse-auto-sync", "true");
     connectButton.disabled = true;
     try {
       await readSheetData();
+      await checkQueuedJobs();
       activities.unshift({ type: "sync", sku: "Google Sheet", qty: 0, code: "Inventory", time: new Date().toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" }) });
       activities.splice(4);
       renderActivities();
@@ -1061,6 +1175,7 @@
     sheetConnection.sheetUrl = "";
     sheetUrl.value = "";
     setSheetStatus("demo", "ใช้ข้อมูลตัวอย่าง", "ยกเลิกการเชื่อมต่อแล้ว การเปลี่ยน Stock จะอยู่เฉพาะในเครื่องนี้");
+    hideQueueStatus();
     scheduleAutoSync();
     modal.hidden = true;
   });
@@ -1076,6 +1191,7 @@
   render();
   if (sheetConnection.sheetUrl) {
     readSheetData()
+      .then(() => checkQueuedJobs())
       .then(() => scheduleAutoSync())
       .catch(error => setSheetStatus("error", "เชื่อมต่อไม่สำเร็จ", error.message));
   }
