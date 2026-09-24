@@ -855,18 +855,22 @@
       if (document.visibilityState === "visible" && !state.agv && !queueCompletionInFlight) {
         try {
           await readSheetData({ announce: false });
-          await checkQueuedJobs();
+          await checkQueuedJobsSafely();
           autoSyncFailures = 0;
         } catch (error) {
           autoSyncFailures = Math.min(2, autoSyncFailures + 1);
-          setSheetStatus("error", "Auto Sync ไม่สำเร็จ", error.message);
+          if (autoSyncFailures < 2) {
+            setSheetStatus("pending", "Auto Sync กำลังลองใหม่", `${error.message} · การเชื่อมต่อก่อนหน้ายังใช้งานได้`);
+          } else {
+            setSheetStatus("error", "Auto Sync ไม่สำเร็จ", error.message);
+          }
         }
       }
       scheduleAutoSync();
     }, wait);
   }
 
-  function jsonpRequest(params, timeout = 12000) {
+  function jsonpRequest(params, timeout = 20000) {
     return new Promise((resolve, reject) => {
       if (!isWebAppUrl(sheetConnection.webAppUrl)) return reject(new Error("Web App URL ไม่ถูกต้อง"));
       const callbackName = `__warehouseSheet_${Date.now()}_${Math.random().toString(36).slice(2)}`;
@@ -1037,6 +1041,15 @@
     return queueCheckInFlight.finally(() => { queueCheckInFlight = null; });
   }
 
+  async function checkQueuedJobsSafely() {
+    try {
+      return await checkQueuedJobs();
+    } catch (error) {
+      setQueueStatus("error", "ตรวจคิว AGV ไม่สำเร็จ", `${error.message} · การเชื่อมต่อ Inventory ยังใช้งานได้`, 7000);
+      return null;
+    }
+  }
+
   async function completeQueuedJob(job) {
     queueCompletionInFlight = true;
     updateSyncControls();
@@ -1128,7 +1141,7 @@
   manualSyncButton.addEventListener("click", async () => {
     try {
       await readSheetData();
-      await checkQueuedJobs();
+      await checkQueuedJobsSafely();
     } catch (error) {
       setSheetStatus("error", "Refresh ไม่สำเร็จ", error.message);
     }
@@ -1154,7 +1167,7 @@
     connectButton.disabled = true;
     try {
       await readSheetData();
-      await checkQueuedJobs();
+      await checkQueuedJobsSafely();
       activities.unshift({ type: "sync", sku: "Google Sheet", qty: 0, code: "Inventory", time: new Date().toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" }) });
       activities.splice(4);
       renderActivities();
@@ -1191,7 +1204,7 @@
   render();
   if (sheetConnection.sheetUrl) {
     readSheetData()
-      .then(() => checkQueuedJobs())
+      .then(() => checkQueuedJobsSafely())
       .then(() => scheduleAutoSync())
       .catch(error => setSheetStatus("error", "เชื่อมต่อไม่สำเร็จ", error.message));
   }
