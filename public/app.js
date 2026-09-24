@@ -659,6 +659,7 @@
     } : null;
     document.getElementById("receive-stock").disabled = true;
     document.getElementById("pick-stock").disabled = true;
+    updateSyncControls();
     document.getElementById("result-title").textContent = type === "in" ? `AGV กำลังนำ ${item.sku} เข้าชั้น` : `AGV กำลังไปรับ ${item.sku}`;
     document.getElementById("result-detail").textContent = `${type === "in" ? "INBOUND" : "OUTBOUND"} → ${item.code}`;
   }
@@ -683,6 +684,7 @@
     state.agv = null;
     document.getElementById("receive-stock").disabled = false;
     document.getElementById("pick-stock").disabled = false;
+    updateSyncControls();
   }
 
   function renderProductOptions() {
@@ -763,6 +765,12 @@
   const sheetStatus = document.getElementById("sheet-status");
   const syncBadge = document.getElementById("sync-badge");
   const syncBadgeText = document.getElementById("sync-badge-text");
+  const manualSyncButton = document.getElementById("manual-sync");
+  const autoSyncButton = document.getElementById("toggle-auto-sync");
+  const autoSyncState = document.getElementById("auto-sync-state");
+  let sheetSyncInFlight = null;
+  let autoSyncTimer = null;
+  let autoSyncEnabled = localStorage.getItem("warehouse-auto-sync") === "true";
   const sheetConnection = {
     sheetUrl: localStorage.getItem("warehouse-sheet-url") || "",
     webAppUrl: CENTRAL_SHEET_CONNECTOR.webAppUrl,
@@ -788,6 +796,35 @@
       connectionNote.textContent = detail;
       connectionNote.className = `connection-note ${mode === "ready" ? "success" : mode === "error" ? "error" : ""}`;
     }
+  }
+
+  function updateSyncControls() {
+    const connected = Boolean(sheetIdFromUrl(sheetConnection.sheetUrl));
+    const busy = Boolean(sheetSyncInFlight);
+    manualSyncButton.disabled = !connected || busy || Boolean(state.agv);
+    manualSyncButton.classList.toggle("syncing", busy);
+    autoSyncButton.disabled = !connected;
+    autoSyncButton.classList.toggle("active", autoSyncEnabled && connected);
+    autoSyncButton.setAttribute("aria-pressed", String(autoSyncEnabled && connected));
+    autoSyncState.textContent = autoSyncEnabled && connected ? "ON" : "OFF";
+  }
+
+  function scheduleAutoSync(delay) {
+    clearTimeout(autoSyncTimer);
+    autoSyncTimer = null;
+    updateSyncControls();
+    if (!autoSyncEnabled || !sheetIdFromUrl(sheetConnection.sheetUrl)) return;
+    const wait = delay ?? 25000 + Math.random() * 10000;
+    autoSyncTimer = setTimeout(async () => {
+      if (document.visibilityState === "visible" && !state.agv) {
+        try {
+          await readSheetData({ announce: false });
+        } catch (error) {
+          setSheetStatus("error", "Auto Sync ไม่สำเร็จ", error.message);
+        }
+      }
+      scheduleAutoSync();
+    }, wait);
   }
 
   function jsonpRequest(params, timeout = 12000) {
@@ -835,19 +872,26 @@
     return updated;
   }
 
-  async function readSheetData({ announce = true } = {}) {
-    if (announce) setSheetStatus("syncing", "กำลังโหลดข้อมูล…", "กำลังอ่าน Inventory จาก Google Sheet");
-    const requestedSheetId = sheetIdFromUrl(sheetConnection.sheetUrl);
-    if (!requestedSheetId) throw new Error("Google Sheet URL ไม่ถูกต้อง");
-    const payload = await jsonpRequest({ action: "read", key: sheetConnection.key, sheetId: requestedSheetId, _: Date.now() });
-    if (!payload || payload.ok !== true || !Array.isArray(payload.items)) throw new Error(payload?.error || "รูปแบบข้อมูลจาก Sheet ไม่ถูกต้อง");
-    const expectedSheetId = sheetIdFromUrl(sheetConnection.sheetUrl);
-    if (expectedSheetId && payload.spreadsheetId && expectedSheetId !== payload.spreadsheetId) throw new Error("Web App เชื่อมกับ Google Sheet คนละไฟล์");
-    const updated = applySheetRows(payload.items);
-    if (!updated) throw new Error("ไม่พบ Location ที่ตรงกับแผนที่");
-    const now = new Date().toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" });
-    setSheetStatus("ready", `ซิงก์แล้ว ${now}`, `เชื่อมต่อสำเร็จ · โหลด ${updated} ตำแหน่งจาก ${payload.sheetName || "Inventory"}`);
-    return payload;
+  function readSheetData({ announce = true } = {}) {
+    if (sheetSyncInFlight) return sheetSyncInFlight;
+    sheetSyncInFlight = (async () => {
+      if (announce) setSheetStatus("syncing", "กำลังโหลดข้อมูล…", "กำลังอ่าน Inventory จาก Google Sheet");
+      const requestedSheetId = sheetIdFromUrl(sheetConnection.sheetUrl);
+      if (!requestedSheetId) throw new Error("Google Sheet URL ไม่ถูกต้อง");
+      const payload = await jsonpRequest({ action: "read", key: sheetConnection.key, sheetId: requestedSheetId, _: Date.now() });
+      if (!payload || payload.ok !== true || !Array.isArray(payload.items)) throw new Error(payload?.error || "รูปแบบข้อมูลจาก Sheet ไม่ถูกต้อง");
+      if (payload.spreadsheetId && requestedSheetId !== payload.spreadsheetId) throw new Error("Web App เชื่อมกับ Google Sheet คนละไฟล์");
+      const updated = applySheetRows(payload.items);
+      if (!updated) throw new Error("ไม่พบ Location ที่ตรงกับแผนที่");
+      const now = new Date().toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" });
+      setSheetStatus("ready", `ซิงก์แล้ว ${now}`, `เชื่อมต่อสำเร็จ · โหลด ${updated} ตำแหน่งจาก ${payload.sheetName || "Inventory"}`);
+      return payload;
+    })();
+    updateSyncControls();
+    return sheetSyncInFlight.finally(() => {
+      sheetSyncInFlight = null;
+      updateSyncControls();
+    });
   }
 
   function submitSheetForm(fields) {
@@ -915,6 +959,19 @@
   }
 
   if (sheetConnection.sheetUrl) setSheetStatus("syncing", "กำลังเชื่อมต่อ…");
+  updateSyncControls();
+  manualSyncButton.addEventListener("click", async () => {
+    try {
+      await readSheetData();
+    } catch (error) {
+      setSheetStatus("error", "Refresh ไม่สำเร็จ", error.message);
+    }
+  });
+  autoSyncButton.addEventListener("click", () => {
+    autoSyncEnabled = !autoSyncEnabled;
+    localStorage.setItem("warehouse-auto-sync", String(autoSyncEnabled));
+    scheduleAutoSync(autoSyncEnabled ? 1200 : undefined);
+  });
   document.getElementById("open-sheet-settings").addEventListener("click", () => { modal.hidden = false; requestAnimationFrame(() => sheetUrl.focus()); });
   document.getElementById("close-sheet-settings").addEventListener("click", () => { modal.hidden = true; });
   connectButton.addEventListener("click", async () => {
@@ -931,6 +988,7 @@
       activities.unshift({ type: "sync", sku: "Google Sheet", qty: 0, code: "Inventory", time: new Date().toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" }) });
       activities.splice(4);
       renderActivities();
+      scheduleAutoSync(autoSyncEnabled ? 1200 : undefined);
       setTimeout(() => { modal.hidden = true; }, 500);
     } catch (error) {
       setSheetStatus("error", "เชื่อมต่อไม่สำเร็จ", error.message);
@@ -942,19 +1000,27 @@
     localStorage.removeItem("warehouse-sheet-url");
     localStorage.removeItem("warehouse-web-app-url");
     localStorage.removeItem("warehouse-connection-key");
+    localStorage.setItem("warehouse-auto-sync", "false");
+    autoSyncEnabled = false;
     sheetConnection.sheetUrl = "";
     sheetUrl.value = "";
     setSheetStatus("demo", "ใช้ข้อมูลตัวอย่าง", "ยกเลิกการเชื่อมต่อแล้ว การเปลี่ยน Stock จะอยู่เฉพาะในเครื่องนี้");
+    scheduleAutoSync();
     modal.hidden = true;
   });
   modal.addEventListener("click", event => { if (event.target === modal) modal.hidden = true; });
   document.addEventListener("keydown", event => { if (event.key === "Escape") modal.hidden = true; });
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && autoSyncEnabled) scheduleAutoSync(1200);
+  });
 
   new ResizeObserver(() => { if (state.initialized) resetView(); }).observe(frame);
   selectLocation("B2-03");
   renderActivities();
   render();
   if (sheetConnection.sheetUrl) {
-    readSheetData().catch(error => setSheetStatus("error", "เชื่อมต่อไม่สำเร็จ", error.message));
+    readSheetData()
+      .then(() => scheduleAutoSync())
+      .catch(error => setSheetStatus("error", "เชื่อมต่อไม่สำเร็จ", error.message));
   }
 })();

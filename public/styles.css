@@ -27,7 +27,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .topbar {
   min-height: 72px;
   display: grid;
-  grid-template-columns: minmax(230px, 1fr) minmax(340px, 1.5fr) minmax(210px, 1fr);
+  grid-template-columns: minmax(220px, .85fr) minmax(320px, 1.25fr) minmax(410px, 1.2fr);
   align-items: center;
   gap: 18px;
   padding: 12px 14px;
@@ -57,8 +57,8 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .product-search select { min-width: 0; height: 42px; border: 0; outline: 0; background: transparent; color: var(--ink); font-size: 15px; }
 .product-search button { height: 42px; padding: 0 18px; border: 0; border-radius: 9px; background: var(--blue); color: #fff; font-weight: 700; }
 
+.data-actions { justify-self: end; display: flex; align-items: center; gap: 7px; }
 .sheet-button {
-  justify-self: end;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -75,6 +75,17 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .sheet-button strong, .sheet-button small { display: block; }
 .sheet-button strong { font-size: 12px; }
 .sheet-button small { color: var(--muted); font-size: 11px; margin-top: 2px; }
+.sync-control { min-height: 42px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 10px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface); color: var(--ink); font-size: 11px; font-weight: 750; white-space: nowrap; }
+.sync-control:hover:not(:disabled) { border-color: #bfd2e7; background: #f3f7fc; }
+.sync-control:disabled { cursor: not-allowed; opacity: .45; }
+.refresh-icon { color: var(--blue); font-size: 20px; line-height: 1; }
+.refresh-control.syncing .refresh-icon { animation: spin .8s linear infinite; }
+.auto-control i { width: 8px; height: 8px; border-radius: 50%; background: #a5b2c0; box-shadow: 0 0 0 3px rgba(165,178,192,.16); }
+.auto-control strong { color: var(--muted); font-size: 9px; letter-spacing: .06em; }
+.auto-control.active { border-color: #aad9bb; background: #edf9f1; color: #147442; }
+.auto-control.active i { background: #20a45c; box-shadow: 0 0 0 3px rgba(32,164,92,.16); }
+.auto-control.active strong { color: #147442; }
+@keyframes spin { to { transform: rotate(360deg); } }
 
 .workspace { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 16px; margin-top: 16px; }
 .map-panel, .detail-panel, .activity-panel { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); }
@@ -222,7 +233,10 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 @media (max-width: 650px) {
   .app-shell { padding: 8px; }
   .topbar { grid-template-columns: 1fr auto; gap: 10px; border-radius: 14px; }
-  .brand small, .sheet-button > span:last-child { display: none; }
+  .brand small, .sheet-button > span:last-child, .sync-control .control-label { display: none; }
+  .data-actions { gap: 5px; }
+  .sync-control { min-width: 40px; padding: 0 8px; }
+  .auto-control strong { font-size: 8px; }
   .sheet-button { min-width: 48px; justify-content: center; }
   .map-overlay-top { top: 9px; left: 9px; right: 9px; flex-wrap: wrap; }
   .map-title-floating { max-width: calc(100% - 8px); }

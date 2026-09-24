@@ -22,10 +22,18 @@
         <button type="submit">แสดงตำแหน่ง</button>
       </form>
 
-      <button class="sheet-button" id="open-sheet-settings" type="button">
-        <span class="sheet-icon" aria-hidden="true">▦</span>
-        <span><strong>Workshop Data</strong><small id="sheet-status">ใช้ข้อมูลตัวอย่าง</small></span>
-      </button>
+      <div class="data-actions">
+        <button class="sync-control refresh-control" id="manual-sync" type="button" aria-label="รีเฟรชข้อมูลจาก Google Sheet" title="Refresh data" disabled>
+          <span class="refresh-icon" aria-hidden="true">↻</span><span class="control-label">Refresh</span>
+        </button>
+        <button class="sync-control auto-control" id="toggle-auto-sync" type="button" aria-label="เปิดหรือปิด Auto Sync" aria-pressed="false" disabled>
+          <i aria-hidden="true"></i><span class="control-label">Auto Sync</span><strong id="auto-sync-state">OFF</strong>
+        </button>
+        <button class="sheet-button" id="open-sheet-settings" type="button">
+          <span class="sheet-icon" aria-hidden="true">▦</span>
+          <span><strong>Workshop Data</strong><small id="sheet-status">ใช้ข้อมูลตัวอย่าง</small></span>
+        </button>
+      </div>
     </header>
 
     <main class="workspace">
@@ -116,6 +124,6 @@
     </section>
   </div>
 
-  <script src="app.js?v=24"></script>
+  <script src="app.js?v=25"></script>
 </body>
 </html>
