@@ -1014,17 +1014,39 @@
     if (queueCheckInFlight) return queueCheckInFlight;
     if (state.agv || queueCompletionInFlight || !sheetIdFromUrl(sheetConnection.sheetUrl)) return null;
     queueCheckInFlight = (async () => {
-      const payload = await jsonpRequest({
-        action: "claim",
+      const jobsPayload = await jsonpRequest({
+        action: "jobs",
         key: sheetConnection.key,
         sheetId: sheetIdFromUrl(sheetConnection.sheetUrl),
-        worker: queueWorkerId,
         _: Date.now()
       });
-      if (!payload || payload.ok !== true) throw new Error(payload?.error || "โหลดคิวงานไม่สำเร็จ");
-      if (!payload.job) { hideQueueStatus(); return null; }
+      if (!jobsPayload || jobsPayload.ok !== true || !Array.isArray(jobsPayload.jobs)) {
+        throw new Error(jobsPayload?.error || "โหลดคิวงานไม่สำเร็จ");
+      }
 
-      const queuedJob = payload.job;
+      // If a claim response was lost, the row is already RUNNING in Sheets.
+      // Resume it directly instead of leaving the AGV idle forever.
+      const ownRunningJob = jobsPayload.jobs.find(job => job.status === "RUNNING" && job.worker === queueWorkerId);
+      const stalledRunningJob = jobsPayload.jobs.find(job => job.status === "RUNNING"
+        && Number.isFinite(Date.parse(job.startedAt))
+        && Date.now() - Date.parse(job.startedAt) > 45000);
+      let queuedJob = ownRunningJob || stalledRunningJob || null;
+      if (!queuedJob) {
+        const pendingJob = jobsPayload.jobs.find(job => job.status === "PENDING");
+        if (!pendingJob) { hideQueueStatus(); return null; }
+        const claimPayload = await jsonpRequest({
+          action: "claim",
+          key: sheetConnection.key,
+          sheetId: sheetIdFromUrl(sheetConnection.sheetUrl),
+          operationId: pendingJob.operationId,
+          worker: queueWorkerId,
+          _: Date.now()
+        });
+        if (!claimPayload || claimPayload.ok !== true) throw new Error(claimPayload?.error || "รับงาน AGV ไม่สำเร็จ");
+        queuedJob = claimPayload.job || null;
+      }
+      if (!queuedJob) { hideQueueStatus(); return null; }
+
       const type = queuedJob.type === "IN" ? "in" : "out";
       const delta = type === "in" ? Number(queuedJob.quantity) : -Number(queuedJob.quantity);
       const started = startAgvJob(delta, type, queuedJob);
