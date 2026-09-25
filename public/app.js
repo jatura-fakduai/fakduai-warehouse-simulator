@@ -624,7 +624,7 @@
       ? locations.find(entry => entry.code === queuedJob.location) || locations.find(entry => entry.sku === queuedJob.sku)
       : locations.find(entry => entry.code === state.selected);
     if (!item) return false;
-    if (queuedJob) selectLocation(item.code, true);
+    if (queuedJob) selectLocation(item.code, false);
     const next = Math.max(0, Math.min(item.capacity, item.stock + delta));
     const actual = next - item.stock;
     if (!actual || (queuedJob && actual !== delta)) return false;
