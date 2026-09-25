@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#eef4fb" />
   <title>AI Warehouse Simulator — Fakduai Lab</title>
-  <link rel="stylesheet" href="styles.css?v=22" />
+  <link rel="stylesheet" href="styles.css?v=23" />
 </head>
 <body>
   <div class="app-shell">
@@ -19,7 +19,9 @@
         <span class="search-icon" aria-hidden="true">⌕</span>
         <label class="sr-only" for="product-select">เลือกสินค้า</label>
         <select id="product-select"></select>
-        <button type="submit">แสดงตำแหน่ง</button>
+        <button class="locate-button" type="submit" aria-label="แสดงตำแหน่งสินค้า" title="แสดงตำแหน่งสินค้า">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1" /></svg>
+        </button>
       </form>
 
       <div class="data-actions">
@@ -103,7 +105,7 @@
         </section>
 
         <section class="activity-panel">
-          <div class="activity-head"><h2>Activity Log</h2><button id="clear-log" type="button">ล้างรายการ</button></div>
+          <div class="activity-head"><h2>History</h2><button id="clear-log" type="button">ล้างรายการ</button></div>
           <div class="activity-list" id="activity-list" aria-live="polite"></div>
         </section>
       </aside>
