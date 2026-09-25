@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#eef4fb" />
   <title>AI Warehouse Simulator — Fakduai Lab</title>
-  <link rel="stylesheet" href="styles.css?v=23" />
+  <link rel="stylesheet" href="styles.css?v=24" />
 </head>
 <body>
   <div class="app-shell">
@@ -20,7 +20,7 @@
         <label class="sr-only" for="product-select">เลือกสินค้า</label>
         <select id="product-select"></select>
         <button class="locate-button" type="submit" aria-label="แสดงตำแหน่งสินค้า" title="แสดงตำแหน่งสินค้า">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1" /></svg>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s6-5.7 6-11a6 6 0 1 0-12 0c0 5.3 6 11 6 11Z" /><circle cx="12" cy="10" r="2.25" /></svg>
         </button>
       </form>
 
@@ -32,7 +32,7 @@
           <i aria-hidden="true"></i><span class="control-label">Auto Sync</span><strong id="auto-sync-state">OFF</strong>
         </button>
         <button class="sheet-button" id="open-sheet-settings" type="button">
-          <span class="sheet-icon" aria-hidden="true">▦</span>
+          <span class="sheet-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 2.5h8l4 4V21.5H6Z" /><path d="M14 2.5v4h4M8.5 10h7M8.5 13.5h7M8.5 17h7M11 9v9" /></svg></span>
           <span><strong>Workshop Data</strong><small id="sheet-status">ใช้ข้อมูลตัวอย่าง</small></span>
         </button>
       </div>
@@ -115,7 +115,7 @@
   <div class="modal-backdrop" id="sheet-modal" hidden>
     <section class="modal" role="dialog" aria-modal="true" aria-labelledby="sheet-modal-title">
       <div class="modal-head">
-        <div><span class="sheet-logo">▦</span><div><h2 id="sheet-modal-title">เชื่อมต่อ Google Sheet</h2><p>ใช้ข้อมูลของแต่ละกลุ่มกับ Warehouse Simulator</p></div></div>
+        <div><span class="sheet-logo" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 2.5h8l4 4V21.5H6Z" /><path d="M14 2.5v4h4M8.5 10h7M8.5 13.5h7M8.5 17h7M11 9v9" /></svg></span><div><h2 id="sheet-modal-title">เชื่อมต่อ Google Sheet</h2><p>ใช้ข้อมูลของแต่ละกลุ่มกับ Warehouse Simulator</p></div></div>
         <button id="close-sheet-settings" type="button" aria-label="ปิด">×</button>
       </div>
       <label for="sheet-url">Google Sheet URL</label>

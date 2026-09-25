@@ -75,6 +75,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 }
 .sheet-icon, .sheet-logo { display: grid; place-items: center; color: #fff; background: #34a853; border-radius: 8px; font-size: 22px; }
 .sheet-icon { width: 34px; height: 34px; }
+.sheet-icon svg, .sheet-logo svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.65; stroke-linecap: round; stroke-linejoin: round; }
 .sheet-button strong, .sheet-button small { display: block; }
 .sheet-button strong { font-size: 12px; }
 .sheet-button small { color: var(--muted); font-size: 11px; margin-top: 2px; }
@@ -105,7 +106,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .map-actions { padding: 5px; }
 .map-actions button { min-width: 38px; height: 38px; padding: 0 10px; border: 0; border-radius: 8px; background: var(--surface-soft); color: var(--ink); font-weight: 800; }
 .map-actions button:hover { background: #e8f0fa; }
-.map-actions .fit-view { width: 38px; min-width: 38px; padding: 0; color: var(--blue); }
+.map-actions .fit-view { width: 38px; min-width: 38px; padding: 0; color: var(--ink); }
 .map-actions svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
 .canvas-frame { position: relative; height: 100%; min-height: 0; margin-bottom: -1px; overflow: hidden; background: radial-gradient(circle at 50% 34%, #eefaff 0, #edf4fb 38%, #e3ecf6 100%); touch-action: none; }
