@@ -126,13 +126,9 @@
             "Location": "={{ $fromAI('location', 'Location ที่ตรวจพบใน Inventory เช่น B2-03', 'string') }}",
             "SKU": "={{ $fromAI('sku', 'รหัส SKU ที่ตรวจพบใน Inventory เช่น A001', 'string') }}",
             "Quantity": "={{ $fromAI('quantity', 'จำนวนเต็มบวกที่ผู้ใช้ยืนยัน', 'number') }}",
-            "Balance": "",
-            "Status": "PENDING",
-            "Started At": "",
-            "Completed At": "",
+            "Status": "={{ 'PENDING' }}",
             "Message": "Waiting for AGV",
-            "Source": "N8N_CHAT",
-            "Worker": ""
+            "Source": "N8N_CHAT"
           },
           "matchingColumns": [],
           "schema": [
@@ -269,7 +265,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "a6c7ab45-98ac-4104-a40d-8524a9e42d4b",
+  "versionId": "d9a36230-72c4-4e66-9f45-4c19dcb3a207",
   "meta": {
     "templateCredsSetupCompleted": false
   },

@@ -368,13 +368,38 @@ function ensureTransactionsStructure_(sheet) {
   const finalHeaders = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
   const indexes = transactionIndexes_(finalHeaders);
   if (sheet.getLastRow() > 1) {
-    const statusRange = sheet.getRange(2, indexes.status + 1, sheet.getLastRow() - 1, 1);
+    const rowCount = sheet.getLastRow() - 1;
+    const transactionValues = sheet.getRange(2, 1, rowCount, sheet.getLastColumn()).getValues();
+    const statusRange = sheet.getRange(2, indexes.status + 1, rowCount, 1);
+    const balanceRange = sheet.getRange(2, indexes.balance + 1, rowCount, 1);
     const statusValues = statusRange.getValues();
-    let changed = false;
-    statusValues.forEach(row => {
-      if (!String(row[0] || "").trim()) { row[0] = "COMPLETED"; changed = true; }
+    const balanceValues = balanceRange.getValues();
+    let statusChanged = false;
+    let balanceChanged = false;
+    transactionValues.forEach((row, rowIndex) => {
+      const status = String(row[indexes.status] || "").trim().toUpperCase();
+      const source = String(row[indexes.source] || "").trim().toUpperCase();
+      const message = String(row[indexes.message] || "").trim().toLowerCase();
+      const hasStarted = Boolean(row[indexes.startedAt]);
+      const hasCompleted = Boolean(row[indexes.completedAt]);
+      const waitingForAgv = source === "N8N_CHAT" && message === "waiting for agv" && !hasStarted && !hasCompleted;
+
+      // Recover rows appended by n8n that were temporarily blank and migrated
+      // to COMPLETED before the AGV had a chance to claim them.
+      if (waitingForAgv && (status === "" || status === "COMPLETED")) {
+        statusValues[rowIndex][0] = "PENDING";
+        statusChanged = true;
+        if (balanceValues[rowIndex][0] === 0) {
+          balanceValues[rowIndex][0] = "";
+          balanceChanged = true;
+        }
+      } else if (!status) {
+        statusValues[rowIndex][0] = "COMPLETED";
+        statusChanged = true;
+      }
     });
-    if (changed) statusRange.setValues(statusValues);
+    if (statusChanged) statusRange.setValues(statusValues);
+    if (balanceChanged) balanceRange.setValues(balanceValues);
   }
   sheet.setFrozenRows(1);
 }
