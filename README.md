@@ -29,7 +29,8 @@ Stock **ไม่เปลี่ยน** ตอนสร้างงาน จ�
 | `public/codelab/` | Code Lab ของ Workshop (หน้าเว็บสอนทีละขั้น พร้อมภาพหน้าจอและวิดีโอเตรียมความพร้อม) |
 | `public/app.js` | Logic ของ Simulator และค่าเชื่อมต่อ Apps Script (`CENTRAL_SHEET_CONNECTOR`) |
 | `google-apps-script/Code.gs` | ตัวกลางระหว่าง Simulator กับ Google Sheet อ่าน Inventory รับงาน ปิดงาน และอัปเดต Stock |
-| `n8n/Fakduai-Warehouse-Chatbot-v5-LINE.json` | Workflow ล่าสุดที่ใช้ใน Workshop รับคำสั่งจาก LINE OA (แนะนำ) |
+| `n8n/Fakduai-Warehouse-Chatbot-v6-LINE-SheetId.json` | Workflow ล่าสุดที่ใช้ใน Workshop รับคำสั่งจาก LINE OA ตั้ง Sheet ID ที่ node **Workshop Settings** ที่เดียว (แนะนำ) |
+| `n8n/Fakduai-Warehouse-Chatbot-v5-LINE.json` | รุ่นก่อน ต้องเลือก Document ใน Google Sheets Tool ทีละตัว |
 | `n8n/Fakduai-Warehouse-Chatbot-v4-Direct-Sheets.json` | รุ่นทดสอบผ่าน n8n Chat ไม่ต้องมี LINE |
 | `n8n/Fakduai-Warehouse-Chatbot-v3-AGV-Queue.json` | รุ่นเก่า สร้างงานผ่าน Apps Script |
 | `AGV_QUEUE_SETUP.md` | รายละเอียดคิวงาน AGV และคอลัมน์ของแท็บ `Transactions` |
@@ -97,14 +98,15 @@ Stock **ไม่เปลี่ยน** ตอนสร้างงาน จ�
 
 ### 4. Import n8n Workflow
 
-1. ใน n8n สร้าง Workflow ใหม่ แล้ว Import `n8n/Fakduai-Warehouse-Chatbot-v5-LINE.json`
+1. ใน n8n สร้าง Workflow ใหม่ แล้ว Import `n8n/Fakduai-Warehouse-Chatbot-v6-LINE-SheetId.json`
    (ถ้ายังไม่มี LINE OA ใช้ `v4-Direct-Sheets.json` ทดสอบผ่านหน้า Chat ของ n8n ได้)
 2. ตั้งค่า Credential:
 
    | Node | ตั้งค่า |
    |---|---|
+   | Workshop Settings | ฟิลด์ `sheetId` ใส่ Sheet ID ของคุณ คือส่วนระหว่าง `/d/` กับ `/edit` ในลิงก์ Sheet (เปิด **Include Other Input Fields** ไว้) |
    | OpenAI Chat Model | OpenAI Credential และเปิด **Use Responses API** (ต้องใช้กับโมเดลอย่าง `gpt-6-luna` ที่เรียก Tool ผ่าน Chat Completions ไม่ได้) |
-   | Inventory Lookup, Transaction Lookup, Create AGV Job | Google Sheets Credential และเลือก Document เป็น Sheet ของคุณ |
+   | Inventory Lookup, Transaction Lookup, Create AGV Job | เลือก Google Sheets Credential ที่เปิด Sheet ของคุณได้ ช่อง Document อ่านจาก Workshop Settings อยู่แล้ว ไม่ต้องแก้ |
    | Reply to LINE | Header Auth: `Authorization` = `Bearer <Channel access token>` |
    | LINE Webhook | ตั้ง path แล้วนำ Production URL ไปใส่ใน LINE Developers |
 
@@ -129,6 +131,7 @@ Push ขึ้น branch `main` จะ Deploy โฟลเดอร์ `public/`
 | `ซิงก์ไม่สำเร็จ` | ลิงก์ Sheet ผิด หรือ Sheet ไม่ได้เป็นของบัญชีที่ Deploy Apps Script | ตรวจลิงก์ หรือ Deploy Apps Script จากบัญชีเจ้าของ Sheet |
 | `Connection Key ไม่ถูกต้อง` | `key` ใน `app.js` ไม่ตรงกับ `API_KEY` ใน `Code.gs` | ตั้งให้ตรงกัน แล้ว Deploy Apps Script เวอร์ชันใหม่ |
 | งานค้างที่ `PENDING` | Auto Sync ปิดอยู่ หรือไม่มีหน้า Simulator เปิดไว้ | เปิด Simulator และ Auto Sync |
+| Google Sheets Tool ขึ้น `Requested entity was not found` | `sheetId` ใน Workshop Settings ผิด หรือ Credential เปิดไฟล์นั้นไม่ได้ | คัดลอก Sheet ID ใหม่จากลิงก์ และใช้บัญชี Google ที่เข้าถึงไฟล์ได้ |
 | งานเป็น `FAILED` | SKU หรือ Location ไม่มีบนแผนที่ | ใช้ Location ที่ Simulator มีเท่านั้น |
 | `Function tools with reasoning_effort are not supported` | OpenAI Chat Model ใช้ Chat Completions | ลบ node แล้วเพิ่มใหม่ เปิด **Use Responses API** |
 | แก้ `Code.gs` แล้วไม่มีผล | ยังไม่ได้ Deploy เวอร์ชันใหม่ | **Deploy → Manage deployments → แก้ไข → New version** (URL เดิมยังใช้ได้) |
