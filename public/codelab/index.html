@@ -972,8 +972,9 @@ footer.pager .btn{padding:10px 18px}
     <li><div>ใน workflow <b>2_Fakduai Lab - AI Warehouse Assistant</b> ดับเบิลคลิก node <b>Workshop Settings</b> (node ที่ 2 ต่อจาก LINE Webhook)
       <figure class="shot"><a href="img/w3-workshop-settings-node.jpg" target="_blank" rel="noopener"><img src="img/w3-workshop-settings-node.jpg" alt="node Workshop Settings อยู่ระหว่าง LINE Webhook กับ Split Events" loading="lazy"></a></figure>
     </div></li>
-    <li><div>ที่ฟิลด์ <code>sheetId</code> ลบค่าเดิม แล้ววาง Sheet ID ของกลุ่ม ชนิดเป็น <b>String</b> เหมือนเดิม</div></li>
-    <li><div>สวิตช์ <b>Include Other Input Fields</b> ต้องเปิดไว้ ถ้าปิด ข้อมูลจาก LINE จะไม่ถูกส่งต่อไปที่ Split Events</div></li>
+    <li><div>ที่ฟิลด์ <code>sheetId</code> ลบค่าเดิมในช่องล่างสุด แล้ววาง Sheet ID ของกลุ่ม ชนิดเป็น <b>String</b> เหมือนเดิม และสวิตช์ <b>Include Other Input Fields</b> ต้องเปิดไว้ ถ้าปิด ข้อมูลจาก LINE จะไม่ถูกส่งต่อไปที่ Split Events
+      <figure class="shot"><a href="img/w3-workshop-settings-panel.jpg" target="_blank" rel="noopener"><img src="img/w3-workshop-settings-panel.jpg" alt="หน้าต่าง node Workshop Settings ฟิลด์ sheetId และสวิตช์ Include Other Input Fields" loading="lazy"></a><figcaption>กรอบส้ม: ฟิลด์ sheetId (ค่าในภาพคือ Sheet Template) และสวิตช์ Include Other Input Fields ที่ต้องเปิด</figcaption></figure>
+    </div></li>
     <li><div>ปิดหน้าต่าง node แล้วกด <b>Save</b> (ถ้า workflow Publish อยู่ ให้กด <b>Publish</b> อีกครั้งเพื่อใช้ค่าใหม่)</div></li>
   </ol>
   <div class="note"><b>ทำไมต้องมี node นี้</b> Tool ทั้ง 3 ตัวอ่าน Sheet ID จาก Workshop Settings ด้วย expression <code>{{ $('Workshop Settings').first().json.sheetId }}</code> เปลี่ยนไฟล์ที่เดียว Tool ทุกตัวเปลี่ยนตาม ไม่ต้องไปแก้ทีละ node</div>
