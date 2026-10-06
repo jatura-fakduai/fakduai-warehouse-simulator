@@ -815,14 +815,22 @@ kbd{font-family:var(--font-mono);font-size:12px;padding:0 5px;border:1px solid v
       <tr><td>Chat Model</td><td>OpenAI รุ่นเล็ก</td><td><code>gpt-6-luna</code> เปิด <b>Use Responses API</b></td></tr>
       <tr><td>Memory</td><td>Chat Memory 10 ข้อความ</td><td>Conversation Memory 8 ข้อความ แยกตาม <code>source.userId</code></td></tr>
       <tr><td>Tools</td><td>ไม่มี</td><td>Inventory Lookup, Transaction Lookup, Create AGV Job</td></tr>
-      <tr><td>Google Sheet</td><td>ไม่มี</td><td>node <b>Workshop Settings</b> ต่อจาก LINE Webhook เก็บ <code>sheetId</code> ให้ Tool ทั้ง 3 ตัวใช้ร่วมกัน (ตั้งค่าใน Lab 3)</td></tr>
+      <tr><td>Google Sheet</td><td>ไม่มี</td><td>node <b>Workshop Settings</b> ต่อจาก LINE Webhook เก็บ <code>sheetId</code> ให้ Tool ทั้ง 3 ตัวใช้ร่วมกัน (ใส่ตอนเริ่ม Lab นี้ ดูด้านล่าง)</td></tr>
     </tbody>
   </table></div>
   <h3>ก่อนเริ่ม: สลับ workflow ที่รับข้อความจาก LINE</h3>
   <p>workflow ของ Lab 1 กับตัวเต็มใช้ Webhook path เดียวกัน (<code>line-webhook</code>) n8n เปิดใช้ path เดียวกันได้ทีละ workflow</p>
   <ol class="do">
     <li><div>เปิด workflow <b>LINE OA - AI Agent Auto Reply</b> ของ Lab 1 กดลูกศรข้างปุ่ม <b>Published</b> มุมขวาบน แล้วเลือกยกเลิกการ Publish (Unpublish)</div></li>
-    <li><div>เปิด workflow ตัวเต็ม เช็กว่าไม่มี node ไหนขึ้นเตือนสีแดง แล้วกด <b>Publish</b></div></li>
+    <li><div>เปิด workflow ตัวเต็ม <b>2_Fakduai Lab - AI Warehouse Assistant</b> ดับเบิลคลิก node <b>Workshop Settings</b> (node ที่ 2 ต่อจาก LINE Webhook) แล้ววาง <b>Sheet ID</b> ของกลุ่มในฟิลด์ <code>sheetId</code> ถ้ายังไม่ใส่ AI จะอ่าน Sheet ของกลุ่มไม่ได้
+      <figure class="urlbar" aria-label="ตำแหน่ง Sheet ID ในลิงก์ Google Sheet">
+        <div class="ub-chrome"><span class="ub-dots"><i></i><i></i><i></i></span><div class="ub-field"><span class="ub-lock" aria-hidden="true">🔒</span><span class="ub-url"><span class="ub-a">docs.google.com/spreadsheets/d/</span><span class="ub-id">1Gp7Afd7GRtTkCFSqa7aeF0Z9wluC7mAft3H1-mh5MEI</span><span class="ub-a">/edit#gid=0</span></span></div></div>
+        <figcaption><b>Sheet ID</b> คือส่วนที่ไฮไลต์ในลิงก์ของ Google Sheet ของกลุ่ม อยู่หลัง <code>/d/</code> และก่อน <code>/edit</code> เปิด Sheet แล้วดูได้ที่แถบที่อยู่ด้านบนของ Browser หรือกด แชร์ › คัดลอกลิงก์</figcaption>
+      </figure>
+      <figure class="shot"><a href="img/w3-workshop-settings-panel.jpg" target="_blank" rel="noopener"><img src="img/w3-workshop-settings-panel.jpg" alt="หน้าต่าง node Workshop Settings ฟิลด์ sheetId" loading="lazy"></a><figcaption>วาง Sheet ID แทนค่าเดิมในช่องล่างสุดของ sheetId และเปิด Include Other Input Fields ไว้</figcaption></figure>
+      <div class="copyline"><button class="btn" data-goto="lab3-3" style="white-space:normal;text-align:left">ดูวิธีหา Sheet ID แบบละเอียด และตัวช่วยแยก ID (L3-03) →</button></div>
+    </div></li>
+    <li><div>เช็กว่าไม่มี node ไหนขึ้นเตือนสีแดง แล้วกด <b>Publish</b></div></li>
     <li><div>ไม่ต้องแก้ Webhook URL ใน LINE เพราะ path เหมือนเดิม ส่งข้อความทดสอบ 1 ครั้ง แล้วดูว่ามีแถวใหม่ใน <b>Executions</b> ของ workflow ตัวเต็ม</div></li>
   </ol>
   <div class="note warn"><b>ต้องเปิด Use Responses API</b> ถ้าใช้ <code>gpt-6-luna</code> คู่กับ Tool แล้วขึ้น <i>Function tools with reasoning_effort are not supported</i> ให้ลบ node OpenAI Chat Model แล้วเพิ่มใหม่ node รุ่นใหม่จะเปิดตัวเลือกนี้ให้อัตโนมัติ</div>
@@ -1024,6 +1032,7 @@ kbd{font-family:var(--font-mono);font-size:12px;padding:0 5px;border:1px solid v
     </tbody>
   </table></div>
   <h3>3 · ใส่ใน Workshop Settings</h3>
+  <p style="color:var(--muted);font-size:14.5px">ถ้าใส่ไว้แล้วตอนเริ่ม Lab 2 ให้เช็กว่า ID ตรงกับ Sheet ของกลุ่ม แล้วข้ามไปขั้นถัดไปได้</p>
   <ol class="do">
     <li><div>ใน workflow <b>2_Fakduai Lab - AI Warehouse Assistant</b> ดับเบิลคลิก node <b>Workshop Settings</b> (node ที่ 2 ต่อจาก LINE Webhook)
       <figure class="shot"><a href="img/w3-workshop-settings-node.jpg" target="_blank" rel="noopener"><img src="img/w3-workshop-settings-node.jpg" alt="node Workshop Settings อยู่ระหว่าง LINE Webhook กับ Split Events" loading="lazy"></a></figure>
@@ -1444,6 +1453,9 @@ kbd{font-family:var(--font-mono);font-size:12px;padding:0 5px;border:1px solid v
   document.getElementById('markDone').addEventListener('change',e=>{
     const id=stepsOf(curTrack)[curStep].id;e.target.checked?done.add(id):done.delete(id);save();render();
   });
+  document.querySelectorAll('[data-goto]').forEach(b=>b.addEventListener('click',()=>{
+    const id=b.dataset.goto;tracks.forEach((tr,ti)=>stepsOf(ti).forEach((s,si)=>{if(s.id===id)go(ti,si,true)}));
+  }));
   document.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click',()=>{
     const i=tracks.findIndex(t=>t.dataset.track===b.dataset.go);if(i>=0)go(i,0,true);
   }));
