@@ -1,0 +1,495 @@
+{
+  "name": "Fakduai Lab - AI Warehouse Assistant (LINE) v5",
+  "nodes": [
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "อ่านตาราง Inventory ทั้งหมดเพื่อค้นหาสินค้าจาก SKU, Name หรือ Location ตารางมีคอลัมน์ Location, SKU, Name, Category, Stock, Capacity และ Color ใช้เครื่องมือนี้ก่อนตอบคำถามเกี่ยวกับสินค้าและสต็อกทุกครั้ง",
+        "documentId": {
+          "__rl": true,
+          "value": "1Gp7Afd7GRtTkCFSqa7aeF0Z9wluC7mAft3H1-mh5MEI",
+          "mode": "list",
+          "cachedResultName": "AI Warehouse Workshop — Que AGV",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Gp7Afd7GRtTkCFSqa7aeF0Z9wluC7mAft3H1-mh5MEI/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Inventory",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Gp7Afd7GRtTkCFSqa7aeF0Z9wluC7mAft3H1-mh5MEI/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.6,
+      "position": [
+        992,
+        640
+      ],
+      "id": "3dab2925-71f0-466c-a076-ce6f6c867366",
+      "name": "Inventory Lookup"
+    },
+    {
+      "parameters": {
+        "content": "## ตั้งค่าก่อนใช้งาน\n1. **OpenAI Chat Model** เลือก OpenAI Credential และเปิด **Use Responses API**\n2. **Inventory Lookup**, **Transaction Lookup**, **Create AGV Job** เลือก Google Sheets Credential และ Document เป็น Sheet ของคุณ\n3. **Reply to LINE** Header Auth: Name `Authorization`, Value `Bearer <Channel access token>`\n4. **LINE Webhook** ตั้ง path แล้วนำ Production URL ไปใส่ใน LINE Developers\n5. เปิด Warehouse Simulator และ **Auto Sync** แล้วกด **Publish**\n\nทดลองใน LINE: `เบิก A001 จำนวน 10 ชิ้น` แล้วตอบ `ยืนยัน`\n\nผล: n8n Append `PENDING` → Simulator เปลี่ยน `RUNNING → COMPLETED`",
+        "height": 260,
+        "width": 562,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "78d08b97-5ae8-4589-974b-329bde79b231",
+      "name": "Setup Note"
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "ใช้หลังผู้ใช้ยืนยันแล้วเท่านั้น เพิ่มงานหนึ่งแถวลงแท็บ Transactions โดยตรงด้วยสถานะ PENDING ห้ามใช้เครื่องมือนี้แก้ Inventory หรือ Stock",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1Gp7Afd7GRtTkCFSqa7aeF0Z9wluC7mAft3H1-mh5MEI",
+          "mode": "list",
+          "cachedResultName": "AI Warehouse Workshop — Que AGV",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Gp7Afd7GRtTkCFSqa7aeF0Z9wluC7mAft3H1-mh5MEI/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1162890083,
+          "mode": "list",
+          "cachedResultName": "Transactions",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Gp7Afd7GRtTkCFSqa7aeF0Z9wluC7mAft3H1-mh5MEI/edit#gid=1162890083"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Operation ID": "={{ 'AGV-' + $execution.id + '-' + $now.toMillis() }}",
+            "Timestamp": "={{ $now.toISO() }}",
+            "Type": "={{ $fromAI('type', 'IN สำหรับรับเข้า หรือ OUT สำหรับเบิกและจ่ายออก', 'string') }}",
+            "Location": "={{ $fromAI('location', 'Location ที่ตรวจพบใน Inventory เช่น B2-03', 'string') }}",
+            "SKU": "={{ $fromAI('sku', 'รหัส SKU ที่ตรวจพบใน Inventory เช่น A001', 'string') }}",
+            "Quantity": "={{ $fromAI('quantity', 'จำนวนเต็มบวกที่ผู้ใช้ยืนยัน', 'number') }}",
+            "Balance": "0",
+            "Status": "PENDING",
+            "Message": "Waiting for AGV",
+            "Source": "N8N_CHAT"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Operation ID",
+              "displayName": "Operation ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Timestamp",
+              "displayName": "Timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Type",
+              "displayName": "Type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Location",
+              "displayName": "Location",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "SKU",
+              "displayName": "SKU",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Quantity",
+              "displayName": "Quantity",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Balance",
+              "displayName": "Balance",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Started At",
+              "displayName": "Started At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Completed At",
+              "displayName": "Completed At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Message",
+              "displayName": "Message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Source",
+              "displayName": "Source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Worker",
+              "displayName": "Worker",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        1104,
+        640
+      ],
+      "id": "683b8045-a921-4d75-b1f3-d1cc7d732910",
+      "name": "Create AGV Job"
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "อ่านตาราง Transactions ทั้งหมดเพื่อค้นหาประวัติการเคลื่อนย้ายสินค้าจาก SKU, Type หรือ Location ตารางมีคอลัมน์ Type, Location, SKU, Quantity, Balance และ Status ใช้เครื่องมือนี้ก่อนตอบคำถามเกี่ยวกับการเคลื่อนย้ายสินค้าทุกครั้ง",
+        "documentId": {
+          "__rl": true,
+          "value": "1Gp7Afd7GRtTkCFSqa7aeF0Z9wluC7mAft3H1-mh5MEI",
+          "mode": "list",
+          "cachedResultName": "AI Warehouse Workshop — Que AGV",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Gp7Afd7GRtTkCFSqa7aeF0Z9wluC7mAft3H1-mh5MEI/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1162890083,
+          "mode": "list",
+          "cachedResultName": "Transactions",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Gp7Afd7GRtTkCFSqa7aeF0Z9wluC7mAft3H1-mh5MEI/edit#gid=1162890083"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.6,
+      "position": [
+        832,
+        640
+      ],
+      "id": "81746101-14fd-4a63-91f3-363977c28398",
+      "name": "Transaction Lookup"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "line-webhook",
+        "options": {}
+      },
+      "id": "c706722e-2493-4e2f-9f89-2982e1e38f95",
+      "name": "LINE Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -144,
+        352
+      ],
+      "webhookId": "line-webhook"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.line.me/v2/bot/message/reply",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ replyToken: $('Filter Text Messages').item.json.replyToken, messages: [{ type: 'text', text: String($json.output).slice(0, 5000) }] }) }}",
+        "options": {}
+      },
+      "id": "532aab08-0f44-4e2e-9bfd-1746a9927903",
+      "name": "Reply to LINE",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1136,
+        352
+      ]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "body.events",
+        "options": {}
+      },
+      "id": "72c7cec2-8761-4e16-949a-91653463c128",
+      "name": "Split Events",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        64,
+        352
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "c0000001-0000-4000-8000-000000000001",
+              "leftValue": "={{ $json.type }}",
+              "rightValue": "message",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "c0000002-0000-4000-8000-000000000002",
+              "leftValue": "={{ $json.message.type }}",
+              "rightValue": "text",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "3fc1afaf-99e7-457a-8132-ab9d16ec385e",
+      "name": "Filter Text Messages",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [
+        288,
+        352
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.message.text }}",
+        "options": {
+          "systemMessage": "คุณคือ AI Warehouse Assistant ของ Fakduai Lab ช่วยค้นหา Inventory และสร้างงานให้ AGV\n\nกฎการค้นหา:\n1. เมื่อถามถึง SKU ชื่อสินค้า Stock หรือ Location ให้ใช้ Inventory Lookup ก่อนตอบ ห้ามเดาข้อมูล\n2. ตอบภาษาไทยแบบกระชับ ระบุ SKU ชื่อสินค้า Stock และ Location\n\nกฎการสร้างงาน AGV:\n1. RECEIVE/รับเข้า ใช้ Type=IN ส่วน PICK/เบิก/จ่ายออก ใช้ Type=OUT\n2. ต้องทราบ SKU, Quantity และ Location หากข้อมูลไม่ครบให้ถามเพิ่ม\n3. ตรวจ Inventory ก่อนเสมอ เพื่อยืนยันสินค้า Location Stock และ Capacity\n4. ห้ามสร้างงาน OUT หาก Quantity มากกว่า Stock และห้ามสร้างงาน IN หากเกิน Capacity\n5. ก่อนสร้างงาน ให้สรุป Type, SKU, Quantity, Location และถามว่า “ยืนยันสร้างงาน AGV หรือไม่?”\n6. ห้ามเรียก Create AGV Job จนกว่าผู้ใช้จะตอบยืนยันอย่างชัดเจนในข้อความถัดมา\n7. หลังยืนยัน ให้เรียก Create AGV Job เพียงครั้งเดียว เครื่องมือนี้จะ Append แถวลง Transactions โดยตรง\n8. หลัง Tool สำเร็จ ให้แจ้งสถานะ PENDING พร้อมบอกให้เปิด Warehouse Simulator และ Auto Sync\n9. การสร้างงานยังไม่เปลี่ยน Stock; Stock จะเปลี่ยนเมื่อ AGV ทำงานเสร็จและสถานะเป็น COMPLETED\n10. ห้ามแก้ Inventory หรือ Stock โดยตรงจาก n8n\n\nตัวอย่าง:\nผู้ใช้: เบิก A001 10 ชิ้น\nคุณ: ตรวจพบ A001 ที่ B2-03 คงเหลือ 50 ชิ้น ต้องการ PICK 10 ชิ้น ยืนยันสร้างงาน AGV หรือไม่?\nผู้ใช้: ยืนยัน\nคุณ: เรียก Create AGV Job ด้วย Type=OUT, Location=B2-03, SKU=A001, Quantity=10"
+        }
+      },
+      "id": "aed4313a-0c85-4b9e-acff-0a15af17a2cf",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        688,
+        352
+      ]
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Filter Text Messages').item.json.source.userId }}",
+        "contextWindowLength": 8
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        704,
+        592
+      ],
+      "id": "b4ec5273-cd24-4872-83ab-f0755dd17e41",
+      "name": "Conversation Memory"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-6-luna",
+          "mode": "list",
+          "cachedResultName": "gpt-6-luna"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        560,
+        592
+      ],
+      "id": "d0ca1edf-04fd-4d88-bcd0-22001d550564",
+      "name": "OpenAI Chat Model"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Inventory Lookup": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create AGV Job": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transaction Lookup": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LINE Webhook": {
+      "main": [
+        [
+          {
+            "node": "Split Events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Events": {
+      "main": [
+        [
+          {
+            "node": "Filter Text Messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Text Messages": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Reply to LINE",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Conversation Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  }
+}
