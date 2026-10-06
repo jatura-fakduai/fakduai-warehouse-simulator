@@ -4,6 +4,7 @@
 แสดงชั้นวาง สินค้า และรถ AGV ที่วิ่งรับเข้าและเบิกออกตามงานที่ AI สร้างจาก LINE
 
 **เปิดใช้งาน:** https://fakduai-warehouse-simulator.pages.dev/
+**Code Lab ของ Workshop:** https://fakduai-warehouse-simulator.pages.dev/codelab/
 
 ## ระบบทำงานยังไง
 
@@ -25,6 +26,7 @@ Stock **ไม่เปลี่ยน** ตอนสร้างงาน จ�
 | ไฟล์ / โฟลเดอร์ | หน้าที่ |
 |---|---|
 | `public/` | หน้าเว็บ Simulator ทั้งหมด (HTML, CSS, JS, รูป) เป็น static site ไม่ต้อง build |
+| `public/codelab/` | Code Lab ของ Workshop (หน้าเว็บสอนทีละขั้น พร้อมภาพหน้าจอและวิดีโอเตรียมความพร้อม) |
 | `public/app.js` | Logic ของ Simulator และค่าเชื่อมต่อ Apps Script (`CENTRAL_SHEET_CONNECTOR`) |
 | `google-apps-script/Code.gs` | ตัวกลางระหว่าง Simulator กับ Google Sheet อ่าน Inventory รับงาน ปิดงาน และอัปเดต Stock |
 | `n8n/Fakduai-Warehouse-Chatbot-v5-LINE.json` | Workflow ล่าสุดที่ใช้ใน Workshop รับคำสั่งจาก LINE OA (แนะนำ) |
@@ -108,7 +110,7 @@ Stock **ไม่เปลี่ยน** ตอนสร้างงาน จ�
 
 3. กด **Publish** แล้วทดสอบใน LINE: `เบิก A001 จำนวน 10 ชิ้น` → `ยืนยัน`
 
-ขั้นตอนเชื่อม LINE OA กับ n8n แบบละเอียด ดูได้ใน Code Lab ของ Workshop
+ขั้นตอนเชื่อม LINE OA กับ n8n แบบละเอียด ดูได้ใน [Code Lab ของ Workshop](https://fakduai-warehouse-simulator.pages.dev/codelab/)
 
 ### 5. Deploy ขึ้น Cloudflare Pages (ไม่บังคับ)
 

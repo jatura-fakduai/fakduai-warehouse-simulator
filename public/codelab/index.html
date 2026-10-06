@@ -1,0 +1,1428 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="icon" href="img/mark-fakduai.png">
+</head>
+<body>
+<title>AI Warehouse Assistant Code Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Prompt:wght@500;600;700&family=Sarabun:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: warehouse-floor codelab. White cards on a cool slate floor, like the simulator. Each track is a zone; every step carries a location-style code (P-03, L1-02). Sticky aisle rail on the left, one step at a time on the right. */
+:root{
+  --bg:#EDF1F7; --surface:#FFFFFF; --ink:#0E1A3A; --muted:#5B6785; --rule:#D9E0EC;
+  --accent:#2453C8; --accent-ink:#FFFFFF; --accent-soft:#E6EDFB;
+  --receive:#2F8F5B; --receive-soft:#E3F3EA; --pick:#B86E0A; --pick-soft:#FFF4E2;
+  --code-bg:#F1F4FA; --ring:#FFB000;
+  --line:#06C755; --n8n:#E5486B; --oai:#202123; --oai-ink:#FFFFFF;
+  --font-display:"Prompt","Sarabun",system-ui,sans-serif;
+  --font-body:"Sarabun","Leelawadee UI","Thonburi",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0B1222; --surface:#121B30; --ink:#E6ECF7; --muted:#93A0BC; --rule:#22304D;
+  --accent:#7C9DFF; --accent-ink:#0B1222; --accent-soft:#1A2850;
+  --receive:#4CC38A; --receive-soft:#12301F; --pick:#F2B34A; --pick-soft:#2E2410;
+  --code-bg:#18233D; --ring:#FFC53D; --oai:#ECECEC; --oai-ink:#111111; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0B1222; --surface:#121B30; --ink:#E6ECF7; --muted:#93A0BC; --rule:#22304D;
+  --accent:#7C9DFF; --accent-ink:#0B1222; --accent-soft:#1A2850;
+  --receive:#4CC38A; --receive-soft:#12301F; --pick:#F2B34A; --pick-soft:#2E2410;
+  --code-bg:#18233D; --ring:#FFC53D; --oai:#ECECEC; --oai-ink:#111111; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:17px;line-height:1.75;padding-inline:16px}
+a{color:var(--accent)}
+.wrap{max-width:1180px;margin:0 auto;padding-block:20px 56px}
+
+/* top bar */
+.topbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 20px;background:var(--surface);border:1px solid var(--rule);border-radius:16px;padding:14px 20px}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.brand svg{flex:none}
+.brand b{display:block;font-family:var(--font-display);font-weight:700;font-size:18px;line-height:1.25}
+.brand span{display:block;font-size:13px;color:var(--muted);line-height:1.3}
+.meta{display:flex;gap:16px;flex-wrap:wrap;font-size:13.5px;color:var(--muted)}
+.meta b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+
+/* track switcher */
+nav.tracks{display:flex;gap:8px;overflow-x:auto;margin-top:14px;padding-bottom:4px}
+nav.tracks button{all:unset;cursor:pointer;flex:none;display:flex;flex-direction:column;gap:1px;padding:9px 14px;border-radius:12px;background:var(--surface);border:1px solid var(--rule);min-width:118px}
+nav.tracks button:hover{border-color:var(--accent)}
+nav.tracks button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+nav.tracks .t-code{font-family:var(--font-mono);font-size:11px;letter-spacing:.06em;color:var(--muted)}
+nav.tracks .t-name{font-family:var(--font-display);font-weight:600;font-size:14.5px;line-height:1.3}
+nav.tracks .t-tag{font-size:11.5px;color:var(--muted)}
+nav.tracks button[aria-selected="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+nav.tracks button[aria-selected="true"] .t-code,nav.tracks button[aria-selected="true"] .t-tag{color:var(--accent-ink);opacity:.85}
+nav.tracks button.locked{opacity:.62}
+
+.bar{height:5px;border-radius:3px;background:var(--rule);overflow:hidden;margin-top:12px}
+.bar>i{display:block;height:100%;background:var(--receive);width:0;transition:width .3s}
+
+.layout{display:grid;grid-template-columns:260px minmax(0,1fr);gap:28px;margin-top:20px;align-items:start}
+.layout.single{grid-template-columns:minmax(0,1fr)}
+.layout.single nav.rail{display:none}
+nav.rail{position:sticky;top:calc(env(safe-area-inset-top,0px) + 16px);background:var(--surface);border:1px solid var(--rule);border-radius:14px;padding:12px}
+nav.rail .zone{font-family:var(--font-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:2px 8px 8px}
+nav.rail ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+nav.rail button{all:unset;cursor:pointer;display:grid;grid-template-columns:46px 1fr;gap:8px;align-items:center;width:100%;box-sizing:border-box;padding:7px 8px;border-radius:8px;font-size:14px;line-height:1.4;color:var(--muted)}
+nav.rail button:hover{background:var(--bg);color:var(--ink)}
+nav.rail button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+nav.rail button[aria-current="step"]{background:var(--accent-soft);color:var(--ink);font-weight:600}
+.loc{font-family:var(--font-mono);font-size:11.5px;font-weight:600;text-align:center;padding:2px 0;border-radius:5px;border:1.5px solid var(--rule);background:var(--surface);color:var(--muted)}
+button[aria-current="step"] .loc{border-color:var(--accent);color:var(--accent)}
+.done .loc{background:var(--receive);border-color:var(--receive);color:#fff}
+
+main{min-width:0}
+section.step{background:var(--surface);border:1px solid var(--rule);border-radius:16px;padding:26px clamp(18px,4vw,40px) 30px}
+.step-head{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;margin-bottom:4px}
+.code-badge{font-family:var(--font-mono);font-weight:600;font-size:12px;padding:2px 9px;border-radius:6px;background:var(--accent);color:var(--accent-ink)}
+.chip{font-family:var(--font-mono);font-size:11px;letter-spacing:.05em;text-transform:uppercase;padding:2px 8px;border-radius:999px;font-weight:500}
+.chip.line{background:var(--line);color:#fff}
+.chip.n8n{background:var(--n8n);color:#fff}
+.chip.oai{background:var(--oai);color:var(--oai-ink)}
+.chip.sheet{background:#1E8E3E;color:#fff}
+.chip.time{background:var(--code-bg);color:var(--muted)}
+.chip.who{background:var(--pick-soft);color:var(--pick)}
+h1,h2,h3{font-family:var(--font-display);text-wrap:balance}
+h2{font-weight:700;font-size:clamp(22px,3vw,28px);line-height:1.3;margin:6px 0 12px}
+h3{font-weight:600;font-size:18px;margin:28px 0 8px}
+.step p,.step li{max-width:70ch}
+.step ol.do{padding-left:0;list-style:none;counter-reset:do;display:flex;flex-direction:column;gap:18px;margin:18px 0}
+.step ol.do>li{counter-increment:do;display:grid;grid-template-columns:30px minmax(0,1fr);gap:12px}
+.step ol.do>li::before{content:counter(do);font-family:var(--font-mono);font-size:13px;font-weight:600;width:26px;height:26px;border-radius:6px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;margin-top:2px}
+.step ol.do>li>div{min-width:0}
+
+code{font-family:var(--font-mono);font-size:.88em;background:var(--code-bg);padding:1px 6px;border-radius:4px}
+.copyline{display:flex;flex-wrap:wrap;align-items:stretch;gap:8px;margin:10px 0}
+.copyline .val{flex:1 1 260px;min-width:0;font-family:var(--font-mono);font-size:13.5px;background:var(--code-bg);border:1px solid var(--rule);border-radius:8px;padding:9px 12px;overflow-x:auto;white-space:nowrap;color:var(--ink)}
+.btn{all:unset;box-sizing:border-box;cursor:pointer;display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:9px;font-size:14px;font-weight:500;border:1px solid var(--rule);background:var(--surface);color:var(--ink);white-space:nowrap}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.primary:hover{filter:brightness(1.08);color:var(--accent-ink)}
+.btn.copied{border-color:var(--receive);color:var(--receive)}
+.btn[disabled]{opacity:.4;pointer-events:none}
+a.btn{text-decoration:none}
+
+figure.shot{margin:14px 0 6px;border:1px solid var(--rule);border-radius:12px;overflow:hidden;background:var(--bg);max-width:780px}
+figure.shot a{display:block;line-height:0}
+figure.shot img{display:block;width:100%;height:auto}
+figure.shot video{display:block;width:100%;height:auto;background:#000}
+figure.shot figcaption{padding:6px 12px 8px;font-size:12.5px;color:var(--muted);border-top:1px dashed var(--rule);background:var(--surface);line-height:1.5}
+
+.note{border-radius:10px;padding:12px 16px;margin:16px 0;font-size:14.5px;background:var(--accent-soft);max-width:72ch}
+.note.warn{background:var(--pick-soft);color:var(--ink)}
+.note.warn b{color:var(--pick)}
+.note.ok{background:var(--receive-soft)}
+.note b{font-weight:600}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin:16px 0}
+.grid>div{border:1px solid var(--rule);border-radius:12px;padding:12px 14px;font-size:14px;background:var(--bg);min-width:0}
+.grid strong{display:block;font-family:var(--font-display);font-size:15.5px;margin-bottom:2px}
+
+/* system flow */
+.flowmap{display:flex;flex-wrap:wrap;align-items:stretch;gap:8px;margin:16px 0}
+.node{flex:1 1 130px;min-width:0;background:var(--surface);border:1.5px solid var(--rule);border-radius:12px;padding:10px 12px;position:relative}
+.node .n-k{font-family:var(--font-mono);font-size:11px;color:var(--muted);letter-spacing:.05em}
+.node .n-t{font-family:var(--font-display);font-weight:700;font-size:15.5px;line-height:1.3}
+.node .n-d{font-size:12.5px;color:var(--muted);line-height:1.45;margin-top:2px}
+.node.hot{border-color:var(--accent);background:var(--accent-soft)}
+.arrow{align-self:center;font-family:var(--font-mono);color:var(--muted)}
+
+.chat{display:flex;flex-direction:column;gap:8px;max-width:440px;margin:14px 0;padding:14px;border-radius:14px;background:var(--code-bg);border:1px solid var(--rule)}
+.bub{max-width:85%;padding:8px 12px;border-radius:14px;font-size:14.5px;line-height:1.5}
+.bub.me{align-self:flex-end;background:var(--line);color:#fff;border-bottom-right-radius:4px}
+.bub.bot{align-self:flex-start;background:var(--surface);border:1px solid var(--rule);border-bottom-left-radius:4px}
+
+.tbl{overflow-x:auto;margin:14px 0}
+table{border-collapse:collapse;width:100%;min-width:560px;font-size:14px}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--rule);vertical-align:top}
+th{font-family:var(--font-mono);font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:500}
+td.t{font-family:var(--font-mono);font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--muted)}
+tr.lab td{background:var(--accent-soft)}
+.st{font-family:var(--font-mono);font-size:11px;padding:1px 7px;border-radius:999px;white-space:nowrap}
+.st.ready{background:var(--receive-soft);color:var(--receive)}
+.st.soon{background:var(--code-bg);color:var(--muted)}
+
+pre.sysmsg,pre.snippet{font-family:var(--font-mono);font-size:12.5px;line-height:1.6;background:var(--code-bg);border:1px solid var(--rule);border-radius:10px;padding:12px 14px;white-space:pre-wrap;word-break:break-word;margin:8px 0;max-width:72ch;color:var(--ink)}
+pre.sysmsg{max-height:340px;overflow:auto}
+.grid pre.snippet{margin:6px 0 8px}
+.quiz{border:1px solid var(--rule);border-radius:14px;padding:18px clamp(14px,3vw,24px);background:var(--bg);max-width:760px;margin-top:16px}
+.q-top{display:flex;justify-content:space-between;gap:12px;font-family:var(--font-mono);font-size:13px;color:var(--muted)}
+.q-score{font-variant-numeric:tabular-nums;color:var(--receive);font-weight:600}
+.q-bar{height:5px;border-radius:3px;background:var(--rule);margin:8px 0 4px;overflow:hidden}
+.q-bar>i{display:block;height:100%;background:var(--accent);width:0;transition:width .25s}
+.q-text{font-size:clamp(18px,2.6vw,22px);margin:14px 0 14px;line-height:1.45}
+.q-choices{display:flex;flex-direction:column;gap:8px}
+.q-choice{all:unset;box-sizing:border-box;cursor:pointer;display:grid;grid-template-columns:32px minmax(0,1fr);gap:10px;align-items:center;padding:11px 14px;border-radius:10px;border:1.5px solid var(--rule);background:var(--surface);font-size:15.5px;line-height:1.45}
+.q-choice:hover{border-color:var(--accent)}
+.q-choice:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.q-choice .k{font-family:var(--font-mono);font-weight:600;width:28px;height:28px;border-radius:7px;display:grid;place-items:center;background:var(--code-bg);color:var(--muted)}
+.q-choice.right{border-color:var(--receive);background:var(--receive-soft)}
+.q-choice.right .k{background:var(--receive);color:#fff}
+.q-choice.wrong{border-color:var(--pick);background:var(--pick-soft)}
+.q-choice.wrong .k{background:var(--pick);color:#fff}
+.q-choice[disabled]{cursor:default}
+.q-explain{margin-top:12px;padding:12px 14px;border-radius:10px;background:var(--accent-soft);font-size:14.5px}
+.q-nav{display:flex;justify-content:space-between;gap:10px;margin-top:16px}
+.quiz-done{text-align:center;padding:28px 16px;border:1px solid var(--rule);border-radius:14px;background:var(--bg);max-width:760px;margin-top:16px}
+.big-score{font-family:var(--font-display);font-weight:700;font-size:56px;line-height:1.1;color:var(--accent);font-variant-numeric:tabular-nums}
+
+[hidden]{display:none!important}
+/* ===== theme + accent ===== */
+:root[data-accent="green"]{--accent:#138A52;--accent-soft:#DFF4E8}
+:root[data-accent="orange"]{--accent:#C2410C;--accent-soft:#FDEBDD}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"])[data-accent="green"]{--accent:#4CD38D;--accent-soft:#123222}
+  :root:not([data-theme="light"])[data-accent="orange"]{--accent:#FB8F5A;--accent-soft:#3A1F12}
+}
+:root[data-theme="dark"][data-accent="green"]{--accent:#4CD38D;--accent-soft:#123222}
+:root[data-theme="dark"][data-accent="orange"]{--accent:#FB8F5A;--accent-soft:#3A1F12}
+
+.brand img{height:38px;width:auto;flex:none}
+.controls{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.seg{display:inline-flex;padding:3px;border-radius:10px;background:var(--code-bg);border:1px solid var(--rule)}
+.seg button{all:unset;cursor:pointer;padding:5px 11px;border-radius:7px;font-size:13px;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.seg button:focus-visible,.sw:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.swatches{display:inline-flex;gap:6px;align-items:center}
+.sw{all:unset;cursor:pointer;width:22px;height:22px;border-radius:50%;border:2px solid var(--surface);box-shadow:0 0 0 1px var(--rule)}
+.sw[data-accent="blue"]{background:#2453C8}.sw[data-accent="green"]{background:#22A863}.sw[data-accent="orange"]{background:#E1641F}
+.sw[aria-pressed="true"]{box-shadow:0 0 0 2px var(--ink)}
+.btn.ghost{background:transparent}
+.btn.danger{background:#C62828;border-color:#C62828;color:#fff}
+.btn.big{padding:12px 22px;font-size:16px;border-radius:12px}
+.metarow{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px 16px;margin-top:10px;padding:0 4px}
+
+nav.tracks button{position:relative;overflow:hidden}
+nav.tracks .t-prog{position:absolute;left:0;bottom:0;height:3px;background:var(--receive);width:0;transition:width .3s}
+nav.tracks button[aria-selected="true"] .t-prog{background:var(--accent-ink);opacity:.6}
+nav.tracks .t-done{position:absolute;top:8px;right:10px;font-size:12px;color:var(--receive);font-weight:700}
+nav.tracks button[aria-selected="true"] .t-done{color:var(--accent-ink)}
+
+.hero{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:24px;align-items:center;margin:4px 0 8px}
+.hero .eyebrow{font-family:var(--font-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);font-weight:600}
+.hero h2{font-size:clamp(26px,4vw,38px);line-height:1.2;margin:6px 0 10px}
+.hero p{color:var(--muted);font-size:16.5px}
+.hero-cta{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;margin-top:16px}
+.resume-hint{font-size:13.5px;color:var(--muted)}
+.hero-art{border-radius:16px;overflow:hidden;border:1px solid var(--rule);line-height:0;box-shadow:0 12px 32px -18px rgba(14,26,58,.45)}
+.hero-art img{width:100%;height:auto;display:block}
+.zones{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:20px 0 6px}
+.zone{all:unset;box-sizing:border-box;cursor:pointer;display:grid;grid-template-columns:52px minmax(0,1fr);gap:12px;align-items:center;padding:14px;border-radius:14px;border:1px solid var(--rule);background:var(--bg);transition:transform .15s,border-color .15s}
+.zone:hover{border-color:var(--accent);transform:translateY(-2px)}
+.zone:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.ring{width:52px;height:52px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--receive) calc(var(--p)*1%),var(--rule) 0)}
+.ring span{width:40px;height:40px;border-radius:50%;background:var(--surface);display:grid;place-items:center;font-family:var(--font-mono);font-size:12px;font-weight:600}
+.zone .z-code{font-family:var(--font-mono);font-size:11px;color:var(--muted);letter-spacing:.06em}
+.zone .z-name{font-family:var(--font-display);font-weight:700;font-size:16px;line-height:1.3}
+.zone .z-tag{font-size:12.5px;color:var(--muted);line-height:1.4}
+
+section.step:not([hidden]){animation:stepIn .28s ease-out}
+@keyframes stepIn{from{opacity:.35;transform:translateY(6px)}to{opacity:1;transform:none}}
+.kbd-hint{font-size:12.5px;color:var(--muted);text-align:center;margin-top:10px}
+.kbd-hint kbd{font-family:var(--font-mono);font-size:11.5px;padding:1px 6px;border:1px solid var(--rule);border-bottom-width:2px;border-radius:5px;background:var(--surface)}
+
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--surface);padding:12px 18px;border-radius:12px;font-size:15px;font-weight:500;box-shadow:0 10px 30px -10px rgba(0,0,0,.5);z-index:50;max-width:calc(100vw - 32px)}
+.confetti{position:fixed;inset:0;pointer-events:none;z-index:49;overflow:hidden}
+.confetti i{position:absolute;top:-12px;width:8px;height:12px;border-radius:2px;animation:fall 1.6s ease-in forwards}
+@keyframes fall{to{transform:translateY(105vh) rotate(540deg);opacity:.2}}
+.modal{position:fixed;inset:0;background:rgba(8,12,24,.55);display:grid;place-items:center;padding:16px;z-index:60}
+.modal-card{background:var(--surface);color:var(--ink);border-radius:16px;padding:22px;max-width:420px;width:100%;border:1px solid var(--rule)}
+.modal-card h3{margin:0 0 6px}
+.modal-card .row{display:flex;justify-content:flex-end;gap:10px;margin-top:18px}
+
+@media (max-width:880px){.hero{grid-template-columns:minmax(0,1fr)}}
+@media (prefers-reduced-motion:reduce){section.step:not([hidden]){animation:none}.zone{transition:none}.confetti{display:none}}
+
+.sitefoot{max-width:1180px;margin:0 auto;padding-block:0 32px}
+.sitefoot-inner{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px 24px;background:var(--surface);border:1px solid var(--rule);border-radius:16px;padding:14px 20px}
+.sitefoot .ws{font-size:13.5px;color:var(--muted)}
+.sitefoot .ws b{color:var(--ink);font-family:var(--font-display)}
+.credits{display:flex;flex-wrap:wrap;align-items:center;gap:12px 22px}
+.credit{display:inline-flex;align-items:center;gap:10px;text-decoration:none;color:var(--ink);border-radius:8px;padding:4px 2px}
+.credit:hover .n,.credit:hover .k{color:var(--accent)}
+.credit:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.credit .k{font-size:12px;color:var(--muted);white-space:nowrap}
+.credit .n{font-family:var(--font-display);font-weight:700;font-size:15px}
+.credit img.fk{height:24px;width:auto;display:block}
+.credit img.pinto{height:40px;width:40px;border-radius:9px;display:block}
+.credit img.line{height:40px;width:40px;display:block}
+.credits{column-gap:18px}
+.credits .k{font-size:12px;color:var(--muted);white-space:nowrap;margin-right:-8px}
+.credits .sep{width:1px;height:24px;background:var(--rule)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .credit img.fk{filter:brightness(0) invert(1)}}
+:root[data-theme="dark"] .credit img.fk{filter:brightness(0) invert(1)}
+@media (max-width:560px){.credits .sep{display:none}}
+.steps-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:12px 0}
+.steps-row span{font-family:var(--font-display);font-weight:600;font-size:14px;padding:5px 12px;border-radius:8px;background:var(--code-bg)}
+.steps-row span.on{background:var(--accent);color:var(--accent-ink)}
+.steps-row em{font-style:normal;color:var(--muted)}
+
+details.check{border:1px solid var(--rule);border-radius:10px;padding:10px 14px;margin:10px 0;background:var(--bg);max-width:72ch}
+details.check summary{cursor:pointer;font-weight:600}
+details.check summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+details.check p{margin:8px 0 2px}
+
+.hero-img{margin:16px 0 0;border-radius:14px;overflow:hidden;border:1px solid var(--rule);line-height:0}
+.hero-img img{width:100%;height:auto;display:block}
+
+.soon-card{text-align:left}
+.soon-card .big{font-family:var(--font-mono);font-size:13px;color:var(--muted)}
+
+.mark{display:flex;align-items:center;gap:10px;margin-top:22px;padding-top:16px;border-top:1px solid var(--rule);font-size:14.5px}
+.mark input{width:18px;height:18px;accent-color:var(--receive)}
+footer.pager{display:flex;justify-content:space-between;gap:12px;margin-top:16px}
+footer.pager .btn{padding:10px 18px}
+
+@media (max-width:880px){
+  .layout{grid-template-columns:minmax(0,1fr);gap:14px}
+  nav.rail{position:static;padding:8px}
+  nav.rail .zone{display:none}
+  nav.rail ol{flex-direction:row;overflow-x:auto;gap:6px;padding-bottom:4px}
+  nav.rail li{flex:none}
+  nav.rail button{grid-template-columns:46px;padding:4px}
+  nav.rail button .lbl{display:none}
+}
+@media (prefers-reduced-motion:reduce){.bar>i{transition:none}}
+</style>
+
+<div class="wrap">
+  <header class="topbar">
+    <div class="brand">
+      <img src="img/mark-fakduai.png" alt="" width="46" height="38">
+      <div><b>AI Warehouse Assistant · Code Lab</b><span>AI Logistics Chatbot Workshop · Fakduai Lab</span></div>
+    </div>
+    <div class="controls">
+      <div class="seg" role="group" aria-label="โหมดสี">
+        <button type="button" data-mode="auto">อัตโนมัติ</button><button type="button" data-mode="light">สว่าง</button><button type="button" data-mode="dark">มืด</button>
+      </div>
+      <div class="swatches" role="group" aria-label="สีหลัก">
+        <button type="button" class="sw" data-accent="blue" title="น้ำเงิน Fakduai" aria-label="สีน้ำเงิน"></button><button type="button" class="sw" data-accent="green" title="เขียว Pinto" aria-label="สีเขียว"></button><button type="button" class="sw" data-accent="orange" title="ส้ม" aria-label="สีส้ม"></button>
+      </div>
+      <button type="button" class="btn ghost" id="resetBtn">↺ เริ่มใหม่</button>
+    </div>
+  </header>
+  <div class="metarow meta"><span>โซน <b id="zoneName">ภาพรวม</b></span><span>ขั้น <b id="pos">–</b></span><span>เสร็จในโซนนี้ <b id="doneCount">0</b></span></div>
+
+  <nav class="tracks" id="tracks" role="tablist" aria-label="ส่วนของ Workshop"></nav>
+  <div class="bar" aria-hidden="true"><i id="barFill"></i></div>
+
+  <div class="layout" id="layout">
+    <nav class="rail" aria-label="ขั้นตอน"><div class="zone" id="railZone"></div><ol id="rail"></ol></nav>
+    <main id="main">
+
+<!-- ============ OVERVIEW ============ -->
+<div class="track" data-track="overview" data-name="ภาพรวม" data-code="00" data-tag="เริ่มที่นี่" data-single="1">
+<section class="step" id="overview-1" data-title="ภาพรวม Workshop" data-code="00">
+  <div class="hero">
+    <div>
+      <span class="eyebrow">Fakduai Lab · AI Logistics Workshop</span>
+      <h2>สร้าง AI Warehouse Assistant บน LINE OA</h2>
+      <p>ถามสต็อก สั่งเบิก สั่งรับเข้า ผ่าน LINE แล้วดู AGV ในคลังจำลองวิ่งทำงานจริง เริ่มจาก Template ที่ใช้งานได้ ไม่ต้องเขียนโค้ดเอง</p>
+      <div class="hero-cta"><button type="button" class="btn primary big" id="heroStart">เริ่มเรียน →</button><span class="resume-hint" id="resumeHint"></span></div>
+    </div>
+    <div class="hero-art"><img src="img/W-simulator.jpg" alt="AI Warehouse Simulator แสดงคลังสินค้าแบบ Isometric พร้อมรถบรรทุกและ AGV"></div>
+  </div>
+  <div class="zones" id="zoneCards" aria-label="ความคืบหน้าแต่ละโซน"></div>
+  <div class="chat" aria-label="ตัวอย่างบทสนทนา">
+    <div class="bub me">A001 เหลือเท่าไหร่ และอยู่ตรงไหน?</div>
+    <div class="bub bot">A001 คงเหลือ 80 ชิ้น อยู่ที่ Location B2-03</div>
+  </div>
+  <h3>System Flow</h3>
+  <div class="flowmap">
+    <div class="node"><div class="n-k">LAB 1</div><div class="n-t">LINE OA</div><div class="n-d">รับคำถามจากพนักงาน</div></div>
+    <div class="arrow">→</div>
+    <div class="node"><div class="n-k">LAB 1</div><div class="n-t">n8n</div><div class="n-d">Workflow รับ Webhook และส่งต่อ</div></div>
+    <div class="arrow">→</div>
+    <div class="node"><div class="n-k">LAB 2</div><div class="n-t">AI</div><div class="n-d">เข้าใจคำถาม ตอบตาม Role และ Rules</div></div>
+    <div class="arrow">→</div>
+    <div class="node"><div class="n-k">LAB 3</div><div class="n-t">Google Sheets</div><div class="n-d">Mock WMS กลุ่มละ 1 ชุด</div></div>
+    <div class="arrow">→</div>
+    <div class="node"><div class="n-k">LAB 4</div><div class="n-t">Warehouse Simulator</div><div class="n-d">ค้นหา Receive Pick และดู AGV</div></div>
+  </div>
+  <div class="copyline"><div class="val">https://fakduai-warehouse-simulator.pages.dev/</div><button class="btn" data-copy="https://fakduai-warehouse-simulator.pages.dev/">คัดลอก</button><a class="btn" href="https://fakduai-warehouse-simulator.pages.dev/" target="_blank" rel="noopener">เปิด Simulator ↗</a></div>
+
+  <h3>วิธีเรียน</h3>
+  <div class="steps-row"><span class="on">Learn</span><em>→</em><span class="on">Try</span><em>→</em><span>Modify</span><em>→</em><span>Quiz</span></div>
+  <p>เริ่มจากระบบตัวอย่างที่ทำงานได้แล้ว ทดลองดู Flow แล้วค่อยแก้ Prompt ข้อมูล และ Logic ทีละส่วน เวลาส่วนใหญ่จึงใช้กับแนวคิด AI + Automation + Logistics แทนการตั้งค่า Infrastructure</p>
+
+  <h3>ตารางวันอบรม</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>เวลา</th><th>Session</th><th>กิจกรรม</th><th>Code Lab</th></tr></thead>
+    <tbody>
+      <tr><td class="t">09:00–09:25</td><td>AI × Logistics</td><td>ภาพรวม AI, Automation และ Demo ระบบปลายทาง</td><td></td></tr>
+      <tr class="lab"><td class="t">09:25–10:00</td><td>LINE OA for Logistics</td><td>LINE OA vs Messaging API, Add Friend, Message, Webhook และ Reply</td><td><span class="st ready">โซน P</span></td></tr>
+      <tr class="lab"><td class="t">10:00–10:45</td><td><b>Lab 1</b> From LINE to n8n</td><td>เชื่อม LINE OA กับ n8n แล้วดูข้อมูลวิ่งเข้า Workflow</td><td><span class="st ready">พร้อมใช้</span></td></tr>
+      <tr><td class="t">10:45–11:00</td><td>Break</td><td></td><td></td></tr>
+      <tr class="lab"><td class="t">11:00–12:00</td><td><b>Lab 2</b> Teach Your AI</td><td>ปรับ Prompt, Role, Rules และรูปแบบคำตอบ</td><td><span class="st ready">พร้อมใช้</span></td></tr>
+      <tr><td class="t">12:00–13:00</td><td>Lunch</td><td></td><td></td></tr>
+      <tr class="lab"><td class="t">13:00–13:40</td><td><b>Lab 3</b> Warehouse Data</td><td>ค้น SKU, Stock และ Location จาก Google Sheets</td><td><span class="st ready">พร้อมใช้</span></td></tr>
+      <tr class="lab"><td class="t">13:40–14:30</td><td><b>Lab 4</b> Simulator &amp; AGV</td><td>Search, Receive, Pick และดู AGV ทำงาน</td><td><span class="st ready">พร้อมใช้</span></td></tr>
+      <tr><td class="t">14:30–14:45</td><td>Break</td><td></td><td></td></tr>
+      <tr class="lab"><td class="t">14:45–15:40</td><td><b>ตอบคำถามลุ้นรางวัล</b></td><td>ทบทวนทุก Lab ผู้สอนเป็นผู้ดำเนินเกม</td><td></td></tr>
+      <tr><td class="t">15:40–16:30</td><td>Game และ Winner Reward</td><td>เล่นเกม แจกรางวัล</td><td></td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>เริ่มจากตรงไหน</h3>
+  <div class="grid">
+    <div><strong>1 · เตรียมความพร้อม</strong>สร้าง LINE OA และเปิด Messaging API ทำก่อนวันอบรม หรือในช่วง LINE OA for Logistics<div class="copyline"><button class="btn primary" data-go="prep">เริ่มเตรียม LINE OA →</button></div></div>
+    <div><strong>2 · Lab 1</strong>เชื่อม LINE OA เข้ากับ n8n แล้วตามดูข้อความวิ่งผ่าน Workflow ใช้บัญชี n8n และ Webhook path ที่ทีมงานแจก<div class="copyline"><button class="btn" data-go="lab1">ไป Lab 1 →</button></div></div>
+  </div>
+  <div class="note"><b>วิธีดูภาพ</b> กรอบสีส้มในภาพหน้าจอคือปุ่มหรือช่องที่ต้องกดหรือดู คลิกภาพเพื่อเปิดขนาดเต็ม ภาพทั้งหมดถ่ายจากการตั้งค่าจริงเมื่อ 5 ต.ค. 2026</div>
+</section>
+</div>
+
+<!-- ============ PREP ============ -->
+<div class="track" data-track="prep" data-name="เตรียมความพร้อม" data-code="P" data-tag="LINE OA · 10 นาที">
+<section class="step" id="prep-0" data-title="ภาพรวมการเตรียมความพร้อม" data-code="P-00">
+  <div class="step-head"><span class="code-badge">P-00</span><span class="chip line">LINE</span><span class="chip time">10 นาที</span></div>
+  <h2>เตรียม LINE Official Account</h2>
+  <p>ก่อนเริ่ม Lab ทุกคนต้องมี LINE OA ของตัวเองที่เปิดใช้ Messaging API แล้ว ขั้นนี้ทำได้ตั้งแต่ก่อนวันอบรม หรือทำพร้อมกันในช่วง LINE OA for Logistics (09:25–10:00)</p>
+  <div class="grid">
+    <div><strong>บัญชี LINE ส่วนตัว</strong>ใช้ล็อกอินสร้าง LINE OA</div>
+    <div><strong>แอป LINE บนมือถือ</strong>ไว้สแกน QR ตอนล็อกอิน และคุยกับบอทใน Lab</div>
+    <div><strong>PC หรือ Tablet</strong>เปิดหน้าเว็บ LINE ผ่าน Web Browser</div>
+  </div>
+  <h3>ดูวิดีโอก่อนเริ่ม (2:15 นาที)</h3>
+  <figure class="shot video"><video controls preload="metadata" playsinline poster="img/prep-video-poster.jpg" src="img/prep-video.mp4"></video><figcaption>วิดีโอทุกขั้นของโซนนี้ จากหน้าจอจริง ดูจบแล้วทำตามขั้น P-01 และ P-02 ได้เลย</figcaption></figure>
+  <h3>เมื่อจบโซนนี้คุณจะมี</h3>
+  <div class="grid">
+    <div><strong>LINE OA 1 บัญชี</strong>พร้อม Basic ID เช่น <code>@941duujo</code> และถูกเพิ่มเป็นเพื่อนในแอป LINE ของคุณแล้ว</div>
+    <div><strong>Messaging API ที่เปิดใช้งาน</strong>พร้อม Channel ใน LINE Developers ที่จะใช้เชื่อมกับ n8n ใน Lab 1</div>
+  </div>
+  <div class="note warn"><b>ใช้บัญชี LINE เดิมตลอด</b> ทุกครั้งที่ล็อกอินเข้า OA Manager และ LINE Developers ต้องใช้บัญชีเดียวกับที่สมัคร LINE OA</div>
+</section>
+
+<section class="step" id="prep-1" data-title="สร้าง LINE Official Account" data-code="P-01">
+  <div class="step-head"><span class="code-badge">P-01</span><span class="chip line">LINE</span><span class="chip time">5 นาที</span></div>
+  <h2>สร้าง LINE Official Account</h2>
+  <ol class="do">
+    <li><div>เปิดลิงก์สมัครบัญชีทั่วไป (ฟรี)
+      <div class="copyline"><div class="val">https://entry.line.biz/form/entry/unverified</div><button class="btn" data-copy="https://entry.line.biz/form/entry/unverified">คัดลอก</button><a class="btn primary" href="https://entry.line.biz/form/entry/unverified" target="_blank" rel="noopener">เปิดหน้าสมัคร ↗</a></div>
+    </div></li>
+    <li><div>ระบบจะพาไปหน้า <b>LINE Business ID › Login</b> ก่อน ให้กด <b>LINE account</b> (ปุ่มสีเขียว)
+      <figure class="shot"><a href="img/02a-login-business-id.jpg" target="_blank" rel="noopener"><img src="img/02a-login-business-id.jpg" alt="หน้า LINE Business ID Login มีปุ่ม LINE account สีเขียว" loading="lazy"></a></figure>
+    </div></li>
+    <li><div>หน้า <b>QR code login</b> จะขึ้นมา เปิดแอป LINE บนมือถือ กดไอคอนสแกน QR ข้างช่องค้นหา แล้วสแกน QR บนจอ ถ้าเคยผูกอีเมลไว้ในแอป LINE จะกด <b>Log in with email</b> แทนก็ได้
+      <figure class="shot"><a href="img/02b-line-qr-login.jpg" target="_blank" rel="noopener"><img src="img/02b-line-qr-login.jpg" alt="หน้า QR code login ของ LINE" loading="lazy"></a><figcaption>QR ในภาพถูกเบลอไว้ เพราะ QR ที่ใช้ล็อกอินได้จริงคือกุญแจเข้าบัญชี</figcaption></figure>
+    </div></li>
+    <li><div>ล็อกอินเสร็จจะเข้าหน้า <b>สร้าง LINE ออฟฟิเชียลแอคเคาท์</b> กรอก <b>ชื่อบัญชี</b> (ไม่เกิน 20 ตัวอักษร เป็นชื่อที่ลูกค้าเห็น), <b>อีเมล</b> และเลือก <b>ประเภทธุรกิจ</b> ทั้งหลักและย่อย ส่วนชื่อบริษัทไม่บังคับ
+      <figure class="shot"><a href="img/02c-form-top.jpg" target="_blank" rel="noopener"><img src="img/02c-form-top.jpg" alt="ฟอร์มสร้าง LINE ออฟฟิเชียลแอคเคาท์" loading="lazy"></a></figure>
+    </div></li>
+    <li><div>เลื่อนลงล่าง แล้วกด <b>ตกลง</b> (เท่ากับยอมรับข้อกำหนดการใช้บริการ)
+      <figure class="shot"><a href="img/02d-form-submit.jpg" target="_blank" rel="noopener"><img src="img/02d-form-submit.jpg" alt="ปุ่มตกลงท้ายฟอร์ม" loading="lazy"></a></figure>
+    </div></li>
+    <li><div>หน้า <b>ตรวจสอบรายละเอียด</b> เช็กข้อมูลให้ถูก แล้วกด <b>เสร็จสิ้น</b>
+      <figure class="shot"><a href="img/02e-confirm.jpg" target="_blank" rel="noopener"><img src="img/02e-confirm.jpg" alt="หน้าตรวจสอบรายละเอียดก่อนสร้างบัญชี" loading="lazy"></a></figure>
+    </div></li>
+    <li><div>ขึ้นข้อความ <b>สร้าง LINE ออฟฟิเชียลแอคเคาท์แล้ว</b> พร้อม <b>เบสิค ID</b> (เช่น <code>@941duujo</code>) บัญชีนี้จะถูกเพิ่มเป็นเพื่อนใน LINE ของคุณอัตโนมัติ กด <b>ไป LINE Official Account Manager</b>
+      <figure class="shot"><a href="img/02f-complete.jpg" target="_blank" rel="noopener"><img src="img/02f-complete.jpg" alt="หน้าสร้างบัญชีสำเร็จ" loading="lazy"></a></figure>
+    </div></li>
+  </ol>
+  <div class="note warn"><b>ใช้บัญชี LINE เดิมตลอด</b> ทุกขั้นที่ต้องล็อกอินเข้า OA Manager และ LINE Developers ต้องใช้บัญชีเดียวกับที่สมัครในขั้นนี้</div>
+</section>
+
+<section class="step" id="prep-2" data-title="เปิดใช้ Messaging API" data-code="P-02">
+  <div class="step-head"><span class="code-badge">P-02</span><span class="chip line">LINE</span><span class="chip time">4 นาที</span></div>
+  <h2>เปิดใช้ Messaging API</h2>
+  <p>Messaging API คือช่องทางที่ให้ n8n รับและส่งข้อความแทนแอดมิน</p>
+  <ol class="do">
+    <li><div>เข้า OA Manager ครั้งแรกจะเจอ <b>ข้อตกลงเกี่ยวกับการใช้ข้อมูล</b> อ่านแล้วกด <b>ยอมรับ</b>
+      <figure class="shot"><a href="img/03a-agreement.jpg" target="_blank" rel="noopener"><img src="img/03a-agreement.jpg" alt="ข้อตกลงเกี่ยวกับการใช้ข้อมูล" loading="lazy"></a></figure>
+    </div></li>
+    <li><div>หน้าต่าง <b>ยินดีต้อนรับ (1/2)</b> กด <b>ต่อไป</b> แล้วในหน้า (2/2) กด <b>ไปหน้าหลัก</b>
+      <figure class="shot"><a href="img/03b-welcome.jpg" target="_blank" rel="noopener"><img src="img/03b-welcome.jpg" alt="หน้าต่างยินดีต้อนรับ" loading="lazy"></a></figure>
+    </div></li>
+    <li><div>กด <b>⚙ ตั้งค่า</b> ที่มุมขวาบน
+      <figure class="shot"><a href="img/03c-oa-home-settings.jpg" target="_blank" rel="noopener"><img src="img/03c-oa-home-settings.jpg" alt="หน้าหลัก OA Manager ปุ่มตั้งค่ามุมขวาบน" loading="lazy"></a></figure>
+    </div></li>
+    <li><div>ที่เมนูซ้าย กด <b>Messaging API</b>
+      <figure class="shot"><a href="img/03d-settings-menu.jpg" target="_blank" rel="noopener"><img src="img/03d-settings-menu.jpg" alt="เมนูตั้งค่า มีรายการ Messaging API" loading="lazy"></a></figure>
+    </div></li>
+    <li><div>สถานะยังเป็น "ไม่ใช้งาน" กด <b>ใช้ Messaging API</b>
+      <figure class="shot"><a href="img/03e-messaging-api-enable.jpg" target="_blank" rel="noopener"><img src="img/03e-messaging-api-enable.jpg" alt="ปุ่มใช้ Messaging API" loading="lazy"></a></figure>
+    </div></li>
+    <li><div>หน้าต่าง <b>เลือกโพรไวเดอร์</b> เลือก <b>สร้างโพรไวเดอร์</b> แล้วตั้งชื่อ (เช่น <code>ai-logistics-provider</code>) หรือเลือกโพรไวเดอร์เดิมที่มีอยู่ แล้วกด <b>ยอมรับ</b>
+      <figure class="shot"><a href="img/03f-select-provider.jpg" target="_blank" rel="noopener"><img src="img/03f-select-provider.jpg" alt="หน้าต่างเลือกโพรไวเดอร์" loading="lazy"></a></figure>
+    </div></li>
+    <li><div>หน้าต่าง <b>นโยบายความเป็นส่วนตัวและข้อกำหนดการใช้บริการ</b> ทั้งสองช่องไม่บังคับ ปล่อยว่างได้ แล้วกด <b>ตกลง</b>
+      <figure class="shot"><a href="img/03g-privacy-terms.jpg" target="_blank" rel="noopener"><img src="img/03g-privacy-terms.jpg" alt="หน้าต่างนโยบายความเป็นส่วนตัว" loading="lazy"></a></figure>
+    </div></li>
+    <li><div>หน้าต่างยืนยัน <b>ใช้ Messaging API</b> เช็กชื่อบัญชีกับชื่อโพรไวเดอร์ แล้วกด <b>ตกลง</b>
+      <figure class="shot"><a href="img/03h-confirm-provider.jpg" target="_blank" rel="noopener"><img src="img/03h-confirm-provider.jpg" alt="หน้าต่างยืนยันใช้ Messaging API" loading="lazy"></a></figure>
+    </div></li>
+    <li><div>สถานะเปลี่ยนเป็น <b>กำลังใช้งาน</b> และได้ <b>แชนแนล ID</b> มา
+      <figure class="shot"><a href="img/03i-messaging-api-active.jpg" target="_blank" rel="noopener"><img src="img/03i-messaging-api-active.jpg" alt="Messaging API สถานะกำลังใช้งาน" loading="lazy"></a><figcaption>ความลับแชนแนลในภาพถูกเบลอไว้</figcaption></figure>
+    </div></li>
+  </ol>
+  <div class="note warn"><b>โพรไวเดอร์เปลี่ยนภายหลังไม่ได้</b> ในหน้าต่างยืนยันจะเตือนว่าเชื่อมต่อแล้วแก้ไขหรือยกเลิกไม่ได้</div>
+</section>
+</div>
+
+<!-- ============ LAB 1 ============ -->
+<div class="track" data-track="lab1" data-name="Lab 1" data-code="L1" data-tag="From LINE to n8n · 45 นาที">
+<section class="step" id="lab1-1" data-title="เป้าหมายของ Lab" data-code="L1-01">
+  <div class="step-head"><span class="code-badge">L1-01</span><span class="chip time">10:00–10:45</span></div>
+  <h2>Lab 1 · From LINE to n8n</h2>
+  <p>เชื่อม LINE OA ของคุณเข้ากับ Starter Workflow ใน n8n แล้วส่งคำถามจาก LINE ตามดูว่าข้อความเดินทางผ่าน Workflow ยังไงจนกลับมาเป็นคำตอบ เมื่อจบ Lab นี้คุณจะมีบอทที่ตอบได้จริง และอธิบาย Flow ตั้งแต่ผู้ใช้ถามจนระบบตอบกลับได้</p>
+  <div class="flowmap">
+    <div class="node hot"><div class="n-k">1 · MESSAGE</div><div class="n-t">LINE OA</div><div class="n-d">คุณพิมพ์คำถาม</div></div>
+    <div class="arrow">→</div>
+    <div class="node hot"><div class="n-k">2 · WEBHOOK</div><div class="n-t">LINE Webhook</div><div class="n-d">LINE ส่ง Event มาที่ n8n</div></div>
+    <div class="arrow">→</div>
+    <div class="node hot"><div class="n-k">3 · FILTER</div><div class="n-t">Split + Filter</div><div class="n-d">แยก Event และเก็บเฉพาะข้อความ</div></div>
+    <div class="arrow">→</div>
+    <div class="node hot"><div class="n-k">4 · AI</div><div class="n-t">AI Agent</div><div class="n-d">คิดคำตอบ</div></div>
+    <div class="arrow">→</div>
+    <div class="node hot"><div class="n-k">5 · REPLY</div><div class="n-t">Reply to LINE</div><div class="n-d">ส่งคำตอบกลับด้วย replyToken</div></div>
+  </div>
+  <h3>สิ่งที่ต้องมี</h3>
+  <div class="grid">
+    <div><strong>LINE OA จากโซน P</strong>ที่เปิดใช้ Messaging API แล้ว</div>
+    <div><strong>บัญชี n8n</strong>ที่ทีมงานแจก ล็อกอิน <code>n8n.fakduai.com</code> ได้ และมี workflow <b>LINE OA - AI Agent Auto Reply</b> รออยู่</div>
+    <div><strong>Webhook path ของคุณ</strong>ทีมงานจะแจก path ที่ไม่ซ้ำกับคนอื่น</div>
+  </div>
+</section>
+
+<section class="step" id="lab1-2" data-title="ใส่ Webhook URL และออก token" data-code="L1-02">
+  <div class="step-head"><span class="code-badge">L1-02</span><span class="chip line">LINE</span><span class="chip time">4 นาที</span></div>
+  <h2>ใส่ Webhook URL และออก token</h2>
+  <p>ทั้งสองอย่างอยู่ในหน้าเดียวกันของ LINE Developers ใส่ Webhook URL ได้เลยโดยไม่ต้องรอ n8n เพราะ path ของ workflow กำหนดไว้แล้ว</p>
+  <h3>Webhook URL ของคุณ</h3>
+  <p>ใส่ path ที่ทีมงานแจก แล้วกดคัดลอก URL นี้ไว้ใช้ในข้อ 6</p>
+  <div class="copyline"><span style="align-self:center;font-family:var(--font-mono);font-size:13.5px;color:var(--muted)">https://n8n.fakduai.com/webhook/</span><input class="val" id="whPath" value="line-webhook" aria-label="Webhook path" style="flex:0 1 220px;font:inherit;font-family:var(--font-mono);font-size:13.5px;color:var(--ink)"></div>
+  <div class="copyline"><div class="val" id="whFull">https://n8n.fakduai.com/webhook/line-webhook</div><button class="btn" id="copyWh">คัดลอก</button></div>
+
+  <ol class="do">
+    <li><div>เปิด LINE Developers Console ถ้าล็อกอิน LINE ไว้แล้วจะเข้าได้ทันที (ถ้าเข้าครั้งแรก ระบบจะให้กรอก Developer name กับ Email ก่อน)
+      <div class="copyline"><div class="val">https://developers.line.biz/console/</div><button class="btn" data-copy="https://developers.line.biz/console/">คัดลอก</button><a class="btn primary" href="https://developers.line.biz/console/" target="_blank" rel="noopener">เปิด Developers Console ↗</a></div>
+    </div></li>
+    <li><div>ที่เมนูซ้ายใต้หัวข้อ <b>Providers</b> คลิกชื่อโพรไวเดอร์ที่สร้างในขั้น P-02
+      <figure class="shot"><a href="img/04a-dev-console-home.jpg" target="_blank" rel="noopener"><img src="img/04a-dev-console-home.jpg" alt="หน้าแรก LINE Developers Console" loading="lazy"></a></figure>
+    </div></li>
+    <li><div>คลิกการ์ด Channel ที่มีชื่อเดียวกับ LINE OA (มีป้าย Messaging API)
+      <figure class="shot"><a href="img/04b-provider-channels.jpg" target="_blank" rel="noopener"><img src="img/04b-provider-channels.jpg" alt="รายการ Channel ในโพรไวเดอร์" loading="lazy"></a></figure>
+    </div></li>
+    <li><div>เปิดแท็บ <b>Messaging API</b>
+      <figure class="shot"><a href="img/04c-channel-tabs.jpg" target="_blank" rel="noopener"><img src="img/04c-channel-tabs.jpg" alt="แท็บของ Channel" loading="lazy"></a></figure>
+    </div></li>
+    <li><div>หัวข้อ <b>Webhook settings</b> กด <b>Edit</b>
+      <figure class="shot"><a href="img/09a-webhook-edit.jpg" target="_blank" rel="noopener"><img src="img/09a-webhook-edit.jpg" alt="Webhook settings ปุ่ม Edit" loading="lazy"></a></figure>
+    </div></li>
+    <li><div>วาง Webhook URL ด้านบน ทั้งสามข้อด้านล่างต้องขึ้นเครื่องหมายถูก แล้วกด <b>Update</b>
+      <figure class="shot"><a href="img/09b-webhook-url-typed.jpg" target="_blank" rel="noopener"><img src="img/09b-webhook-url-typed.jpg" alt="กรอก Webhook URL" loading="lazy"></a></figure>
+    </div></li>
+    <li><div>จะมีปุ่ม <b>Verify</b> กับสวิตช์ <b>Use webhook</b> โผล่ขึ้นมา <b>ยังไม่ต้องกด Verify</b> ตอนนี้ เพราะ workflow ใน n8n ยังไม่ Publish จะไปกดในขั้น L1-06
+      <figure class="shot"><a href="img/09c-webhook-saved.jpg" target="_blank" rel="noopener"><img src="img/09c-webhook-saved.jpg" alt="บันทึก Webhook URL แล้ว" loading="lazy"></a></figure>
+    </div></li>
+    <li><div>เปิดสวิตช์ <b>Use webhook</b> ให้เป็นสีเขียว (ถ้ากดครั้งแรกแล้วยังไม่เปลี่ยน ให้กดอีกครั้ง)
+      <figure class="shot"><a href="img/09e-use-webhook-on.jpg" target="_blank" rel="noopener"><img src="img/09e-use-webhook-on.jpg" alt="สวิตช์ Use webhook เปิดแล้ว" loading="lazy"></a></figure>
+    </div></li>
+    <li><div>เลื่อนลงล่างสุด หัวข้อ <b>Channel access token (long-lived)</b> กดปุ่ม <b>Issue</b>
+      <figure class="shot"><a href="img/04e-token-issue.jpg" target="_blank" rel="noopener"><img src="img/04e-token-issue.jpg" alt="ปุ่ม Issue ของ Channel access token" loading="lazy"></a></figure>
+    </div></li>
+    <li><div>token ยาว ๆ จะปรากฏขึ้นมา กดไอคอนคัดลอกด้านขวา แล้วเก็บไว้ จะใช้ในขั้น L1-04
+      <figure class="shot"><a href="img/04f-token-issued.jpg" target="_blank" rel="noopener"><img src="img/04f-token-issued.jpg" alt="token ที่ออกแล้วพร้อมไอคอนคัดลอก" loading="lazy"></a><figcaption>token ในภาพถูกเบลอไว้</figcaption></figure>
+    </div></li>
+  </ol>
+  <div class="note warn"><b>อย่าแชร์ token นี้</b> ใครได้ token ไปจะส่งข้อความในนามร้านคุณได้ ถ้าหลุดให้กด <b>Reissue</b> เพื่อออกใหม่ แล้วเอาค่าใหม่ไปใส่ใน n8n</div>
+</section>
+
+<section class="step" id="lab1-3" data-title="ปิดข้อความตอบกลับอัตโนมัติ" data-code="L1-03">
+  <div class="step-head"><span class="code-badge">L1-03</span><span class="chip line">LINE</span><span class="chip time">1 นาที</span></div>
+  <h2>ปิดข้อความตอบกลับอัตโนมัติ</h2>
+  <p>ถ้าไม่ปิด ลูกค้าจะได้ทั้งข้อความอัตโนมัติของ LINE และคำตอบจาก AI ซ้อนกันสองข้อความ</p>
+  <ol class="do">
+    <li><div>เปิด OA Manager › <b>ตั้งค่า</b> › <b>ตั้งค่าการตอบกลับ</b>
+      <div class="copyline"><div class="val">https://manager.line.biz/</div><button class="btn" data-copy="https://manager.line.biz/">คัดลอก</button><a class="btn primary" href="https://manager.line.biz/" target="_blank" rel="noopener">เปิด OA Manager ↗</a></div>
+    </div></li>
+    <li><div><b>Webhook</b> ต้องเป็นสีเขียวแล้วจากขั้น L1-02 ส่วน <b>ข้อความตอบกลับอัตโนมัติ</b> ยังเปิดอยู่
+      <figure class="shot"><a href="img/10a-response-webhook-on.jpg" target="_blank" rel="noopener"><img src="img/10a-response-webhook-on.jpg" alt="ตั้งค่าการตอบกลับก่อนปิด" loading="lazy"></a></figure>
+    </div></li>
+    <li><div>กดสวิตช์ <b>ข้อความตอบกลับอัตโนมัติ</b> ให้เป็นสีเทา ระบบบันทึกให้ทันที
+      <figure class="shot"><a href="img/10b-autoreply-off.jpg" target="_blank" rel="noopener"><img src="img/10b-autoreply-off.jpg" alt="ข้อความตอบกลับอัตโนมัติปิดแล้ว" loading="lazy"></a></figure>
+    </div></li>
+  </ol>
+  <div class="note"><b>ข้อความทักทายเพื่อนใหม่</b> เปิดไว้ได้ เพราะส่งแค่ตอนลูกค้าเพิ่มเพื่อน ไม่ชนกับบอท</div>
+</section>
+
+<section class="step" id="lab1-4" data-title="ตั้งค่า Credentials ใน n8n" data-code="L1-04">
+  <div class="step-head"><span class="code-badge">L1-04</span><span class="chip n8n">n8n</span><span class="chip oai">OpenAI</span><span class="chip time">5 นาที</span></div>
+  <h2>ตั้งค่า Credentials ใน n8n</h2>
+  <ol class="do">
+    <li><div>เปิด n8n แล้วล็อกอินด้วยบัญชีที่ทีมงานแจก
+      <div class="copyline"><div class="val">https://n8n.fakduai.com/</div><button class="btn" data-copy="https://n8n.fakduai.com/">คัดลอก</button><a class="btn primary" href="https://n8n.fakduai.com/" target="_blank" rel="noopener">เปิด n8n ↗</a></div>
+      <figure class="shot"><a href="img/06a-n8n-signin.jpg" target="_blank" rel="noopener"><img src="img/06a-n8n-signin.jpg" alt="หน้า Sign in ของ n8n" loading="lazy"></a></figure>
+    </div></li>
+    <li><div>ที่หน้า Overview คลิก workflow <b>LINE OA - AI Agent Auto Reply</b>
+      <figure class="shot"><a href="img/06g-workflow-list.jpg" target="_blank" rel="noopener"><img src="img/06g-workflow-list.jpg" alt="รายการ workflow ใน n8n" loading="lazy"></a></figure>
+    </div></li>
+    <li><div>จะเห็น workflow แบบนี้ node <b>OpenAI Chat Model</b> กับ <b>Reply to LINE</b> จะมีไอคอนเตือนสีแดง เพราะยังไม่มี credential
+      <figure class="shot"><a href="img/06d-n8n-pasted.jpg" target="_blank" rel="noopener"><img src="img/06d-n8n-pasted.jpg" alt="หน้าตา workflow" loading="lazy"></a></figure>
+    </div></li>
+  </ol>
+  <h3>Reply to LINE (ใช้ token จากขั้น L1-02)</h3>
+  <ol class="do">
+    <li><div>ดับเบิลคลิก node <b>Reply to LINE</b> ที่ช่อง <b>Header Auth</b> กด <b>Set up credential</b>
+      <figure class="shot"><a href="img/07a-reply-node.jpg" target="_blank" rel="noopener"><img src="img/07a-reply-node.jpg" alt="node Reply to LINE ปุ่ม Set up credential" loading="lazy"></a></figure>
+    </div></li>
+    <li><div>ช่อง <b>Name</b> ใส่ค่านี้
+      <div class="copyline"><div class="val">Authorization</div><button class="btn" data-copy="Authorization">คัดลอก</button></div>
+    </div></li>
+    <li><div>ช่อง <b>Value</b> ใส่คำว่า <code>Bearer</code> เว้นวรรค 1 ครั้ง แล้วตามด้วย token วาง token ในช่องด้านล่างเพื่อสร้างค่าที่ถูกต้องได้
+      <div class="copyline"><input class="val" id="tokenIn" placeholder="วาง Channel access token ที่นี่" aria-label="Channel access token" style="font:inherit;font-family:var(--font-mono);font-size:13.5px;color:var(--ink)"><button class="btn" id="copyBearer">คัดลอกเป็น Bearer …</button></div>
+      <span style="font-size:13px;color:var(--muted)">token จะอยู่แค่ในเบราว์เซอร์ของคุณ ไม่ถูกบันทึกหรือส่งไปไหน</span>
+    </div></li>
+    <li><div>กด <b>Save</b> ที่มุมขวาบนของหน้าต่าง
+      <figure class="shot"><a href="img/07c-header-name-filled.jpg" target="_blank" rel="noopener"><img src="img/07c-header-name-filled.jpg" alt="หน้าต่าง Header Auth account" loading="lazy"></a></figure>
+    </div></li>
+  </ol>
+  <h3>OpenAI Chat Model</h3>
+  <ol class="do">
+    <li><div>ดับเบิลคลิก node <b>OpenAI Chat Model</b> ที่ช่อง <b>Credential</b> เลือก credential ที่มีอยู่ หรือเลือก <b>Create new credential</b> แล้ววาง API key ส่วนช่อง <b>Model</b> เลือกรุ่นเล็กที่ตอบเร็ว เช่นตระกูล <code>mini</code>
+      <figure class="shot"><a href="img/07d-openai-credential.jpg" target="_blank" rel="noopener"><img src="img/07d-openai-credential.jpg" alt="node OpenAI Chat Model ช่อง Credential" loading="lazy"></a></figure>
+    </div></li>
+  </ol>
+</section>
+
+<section class="step" id="lab1-5" data-title="Publish workflow" data-code="L1-05">
+  <div class="step-head"><span class="code-badge">L1-05</span><span class="chip n8n">n8n</span><span class="chip time">1 นาที</span></div>
+  <h2>Publish workflow</h2>
+  <ol class="do">
+    <li><div>เช็กว่าไม่มี node ไหนมีไอคอนเตือนสีแดงแล้ว จากนั้นกด <b>Publish</b> ที่มุมขวาบน ระบบจะถามชื่อเวอร์ชัน ใช้ค่าที่ตั้งมาให้ได้เลย แล้วกด <b>Publish</b> อีกครั้ง
+      <figure class="shot"><a href="img/08a-publish-dialog.jpg" target="_blank" rel="noopener"><img src="img/08a-publish-dialog.jpg" alt="หน้าต่าง Publish workflow" loading="lazy"></a></figure>
+    </div></li>
+    <li><div>ปุ่มเปลี่ยนเป็น <b>● Published</b> กล่อง Production Checklist ที่เด้งขึ้นมาเป็นแค่คำแนะนำ ปิดได้
+      <figure class="shot"><a href="img/08b-published.jpg" target="_blank" rel="noopener"><img src="img/08b-published.jpg" alt="workflow สถานะ Published" loading="lazy"></a></figure>
+    </div></li>
+  </ol>
+</section>
+
+<section class="step" id="lab1-6" data-title="Verify และส่งคำถามแรก" data-code="L1-06">
+  <div class="step-head"><span class="code-badge">L1-06</span><span class="chip line">LINE</span><span class="chip time">5 นาที</span></div>
+  <h2>Verify และส่งคำถามแรก</h2>
+  <ol class="do">
+    <li><div>กลับไปที่ LINE Developers › แท็บ <b>Messaging API</b> กด <b>Verify</b> ใต้ Webhook URL ต้องขึ้นว่า <b>Success</b> แล้วกด <b>OK</b>
+      <figure class="shot"><a href="img/09d-verify-success.jpg" target="_blank" rel="noopener"><img src="img/09d-verify-success.jpg" alt="Verify สำเร็จ" loading="lazy"></a></figure>
+    </div></li>
+    <li><div>เปิดแอป LINE บนมือถือ เข้าแชทของ LINE OA ของคุณ บัญชีนี้ถูกเพิ่มเป็นเพื่อนอัตโนมัติตั้งแต่ตอนสมัคร ถ้าหาไม่เจอ ให้สแกน QR ในแท็บ Messaging API ของ LINE Developers</div></li>
+
+    <li><div>พิมพ์ทักบอท แล้วรอ 2–5 วินาที
+      <div class="chat"><div class="bub me">Hi</div><div class="bub bot">Hi ค่ะ ยินดีให้บริการนะคะ หากต้องการสอบถามสินค้า/บริการ แจ้งได้เลยค่ะ</div></div>
+    </div></li>
+    <li><div>ลองถามคำถามคลังสินค้าดู
+      <div class="copyline"><div class="val">A001 เหลือเท่าไหร่ และอยู่ตรงไหน?</div><button class="btn" data-copy="A001 เหลือเท่าไหร่ และอยู่ตรงไหน?">คัดลอก</button></div>
+      สังเกตว่า AI ตอบได้แต่ยังไม่รู้ตัวเลขจริง เพราะตอนนี้ยังไม่ได้ต่อกับข้อมูลคลัง จะต่อใน Lab 3
+    </div></li>
+    <li><div>ลองส่ง <b>สติกเกอร์</b> 1 ตัว บอทจะเงียบ จำไว้ แล้วไปหาเหตุผลในขั้น L1-08</div></li>
+  
+  </ol>
+  <div class="note warn"><b>ถ้าบอทไม่ตอบ</b> แจ้งทีมงานพร้อมบอกเวลาที่ส่ง ทีมงานจะดูจาก Executions ใน n8n ได้ว่าข้อความเข้ามาหรือไม่</div>
+</section>
+
+<section class="step" id="lab1-7" data-title="ดู Executions ใน n8n" data-code="L1-07">
+  <div class="step-head"><span class="code-badge">L1-07</span><span class="chip n8n">n8n</span><span class="chip time">10 นาที</span></div>
+  <h2>ดู Executions ใน n8n</h2>
+  <ol class="do">
+    <li><div>กลับไปที่ workflow ใน n8n แล้วกดแท็บ <b>Executions</b> ด้านบนกลาง ทุกข้อความที่ส่งจะได้หนึ่งแถว คลิกแถวล่าสุดที่ตรงกับเวลาที่คุณส่ง แล้วกดปุ่มขยายมุมล่างซ้ายให้เห็นทุก node
+      <figure class="shot"><a href="img/L1a-execution-overview.jpg" target="_blank" rel="noopener"><img src="img/L1a-execution-overview.jpg" alt="หน้า Execution แสดงทุก node สำเร็จ" loading="lazy"></a><figcaption>ทุก node มีเครื่องหมายถูกสีเขียว และเส้นระหว่าง node บอกจำนวนข้อมูลที่ส่งต่อ (1 item)</figcaption></figure>
+    </div></li>
+  </ol>
+  <details class="check"><summary>เช็กความเข้าใจ: ถ้าส่ง 3 ข้อความ จะเห็นกี่แถว?</summary><p>3 แถว เพราะ LINE ส่ง Webhook มาหนึ่งครั้งต่อหนึ่งข้อความ แต่ละครั้ง n8n จะรัน Workflow หนึ่งรอบ</p></details>
+</section>
+
+<section class="step" id="lab1-8" data-title="ตามข้อความเข้า Workflow" data-code="L1-08">
+  <div class="step-head"><span class="code-badge">L1-08</span><span class="chip n8n">n8n</span><span class="chip time">10 นาที</span></div>
+  <h2>ตามข้อความเข้า Workflow</h2>
+  <ol class="do">
+    <li><div>ในหน้า Execution ดับเบิลคลิก node <b>Filter Text Messages</b> ฝั่ง <b>INPUT</b> คือ Event ที่ LINE ส่งมา หาบรรทัด <code>text</code> จะเห็นข้อความที่คุณพิมพ์
+      <figure class="shot"><a href="img/L1b-filter-data.jpg" target="_blank" rel="noopener"><img src="img/L1b-filter-data.jpg" alt="ข้อมูลใน node Filter Text Messages" loading="lazy"></a></figure>
+    </div></li>
+    <li><div>ข้อมูลสำคัญใน Event ที่ Workflow ใช้งาน
+      <div class="tbl"><table>
+        <thead><tr><th>Field</th><th>ความหมาย</th><th>ใช้ที่ node</th></tr></thead>
+        <tbody>
+          <tr><td><code>type</code></td><td>ชนิด Event เช่น message, follow</td><td>Filter</td></tr>
+          <tr><td><code>message.type</code></td><td>ชนิดข้อความ เช่น text, sticker, image</td><td>Filter</td></tr>
+          <tr><td><code>message.text</code></td><td>ข้อความที่ผู้ใช้พิมพ์</td><td>AI Agent</td></tr>
+          <tr><td><code>source.userId</code></td><td>รหัสผู้ใช้ ใช้แยกความจำของแต่ละคน</td><td>Chat Memory</td></tr>
+          <tr><td><code>replyToken</code></td><td>บัตรผ่านสำหรับตอบกลับข้อความนี้ ใช้ได้ครั้งเดียว</td><td>Reply to LINE</td></tr>
+        </tbody>
+      </table></div>
+    </div></li>
+    <li><div>ดูเงื่อนไขกลาง node: ผ่านเมื่อ <code>type</code> เท่ากับ message <b>และ</b> <code>message.type</code> เท่ากับ text ฝั่ง OUTPUT มีสองแท็บคือ <b>Kept</b> (ผ่าน) กับ <b>Discarded</b> (ถูกกรองทิ้ง)</div></li>
+  </ol>
+  <details class="check"><summary>เช็กความเข้าใจ: ทำไมส่งสติกเกอร์แล้วบอทเงียบ?</summary><p>สติกเกอร์มี <code>message.type</code> เป็น sticker ไม่ใช่ text จึงไปอยู่แท็บ Discarded และไม่ถูกส่งต่อไปที่ AI Agent ลองเปิด Execution ของสติกเกอร์ดูเพื่อยืนยัน</p></details>
+</section>
+
+<section class="step" id="lab1-9" data-title="AI Agent คิดคำตอบ" data-code="L1-09">
+  <div class="step-head"><span class="code-badge">L1-09</span><span class="chip n8n">n8n</span><span class="chip oai">AI</span><span class="chip time">10 นาที</span></div>
+  <h2>AI Agent คิดคำตอบ</h2>
+  <ol class="do">
+    <li><div>ปิดหน้าต่างเดิม แล้วดับเบิลคลิก node <b>AI Agent</b> ดู 3 จุดที่มีกรอบสีส้ม
+      <figure class="shot"><a href="img/L1c-ai-agent-data.jpg" target="_blank" rel="noopener"><img src="img/L1c-ai-agent-data.jpg" alt="node AI Agent แสดง Prompt, System Message และ Output" loading="lazy"></a></figure>
+    </div></li>
+    <li><div><b>Prompt (User Message)</b> คือ <code>{{ $json.message.text }}</code> ดึงข้อความของผู้ใช้จาก node ก่อนหน้ามาเป็นคำถาม</div></li>
+    <li><div><b>System Message</b> คือคำสั่งประจำตัวของ AI ว่าเป็นใคร ตอบแบบไหน และห้ามอะไร ส่วนนี้คือสิ่งที่จะแก้ใน Lab 2</div></li>
+    <li><div><b>Output</b> คือคำตอบที่ AI สร้าง จะถูกส่งต่อไป node <b>Reply to LINE</b> ส่วนช่อง Chat Model กับ Memory ด้านล่าง คือโมเดลที่ใช้ และความจำแยกตาม <code>source.userId</code></div></li>
+  </ol>
+  <details class="check"><summary>เช็กความเข้าใจ: ทำไมบอทจำได้ว่าเราคุยอะไรไปก่อนหน้า?</summary><p>node Chat Memory เก็บบทสนทนาล่าสุด 10 ข้อความ โดยใช้ <code>source.userId</code> เป็นกุญแจ แต่ละคนจึงมีความจำแยกกัน ลองบอกชื่อตัวเองกับบอท แล้วถามกลับว่า "ฉันชื่ออะไร"</p></details>
+</section>
+
+<section class="step" id="lab1-10" data-title="ตอบกลับ และสรุป" data-code="L1-10">
+  <div class="step-head"><span class="code-badge">L1-10</span><span class="chip line">LINE</span><span class="chip n8n">n8n</span><span class="chip time">5 นาที</span></div>
+  <h2>ตอบกลับ และสรุป</h2>
+  <p>node <b>Reply to LINE</b> ส่งคำตอบของ AI กลับไปที่ LINE Messaging API พร้อม <code>replyToken</code> ของข้อความนั้น LINE จึงรู้ว่าต้องตอบในห้องแชทไหน</p>
+  <div class="note warn"><b>replyToken หมดอายุเร็ว</b> ถ้า AI ใช้เวลานานเกินไป การตอบกลับจะล้มเหลว นี่คือเหตุผลที่ควรใช้โมเดลที่ตอบเร็วและ Prompt ที่กระชับ</div>
+  <h3>สรุป Lab 1</h3>
+  <div class="grid">
+    <div><strong>Message</strong>ผู้ใช้พิมพ์ใน LINE OA</div>
+    <div><strong>Webhook</strong>LINE ส่ง Event เป็น JSON มาที่ URL ของ n8n</div>
+    <div><strong>Workflow</strong>n8n แยก กรอง แล้วส่งให้ AI คิด</div>
+    <div><strong>Reply</strong>n8n ตอบกลับด้วย replyToken</div>
+  </div>
+  <h3>ภารกิจท้าย Lab</h3>
+  <ol class="do">
+    <li><div>ส่งข้อความ 3 แบบ: ทักทาย, คำถามคลังสินค้า, สติกเกอร์ แล้วหา Execution ของแต่ละข้อความใน n8n</div></li>
+    <li><div>อธิบายให้เพื่อนในกลุ่มฟังว่าข้อความสติกเกอร์หยุดที่ node ไหน และเพราะอะไร</div></li>
+  </ol>
+<h3>ปัญหาที่พบบ่อย</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>อาการ</th><th>สาเหตุที่เป็นไปได้</th><th>วิธีแก้</th></tr></thead>
+    <tbody>
+      <tr><td>Verify ไม่ผ่าน (404)</td><td>workflow ยังไม่ Publish หรือ path ใน URL ไม่ตรงกับ node LINE Webhook</td><td>Publish ตามขั้น L1-05 แล้วเทียบ URL กับแท็บ Production URL ของ node LINE Webhook</td></tr>
+      <tr><td>สวิตช์ Webhook ใน OA Manager กดไม่ได้</td><td>ยังไม่ได้ใส่ Webhook URL</td><td>ใส่ URL ตามขั้น L1-02</td></tr>
+      <tr><td>บอทเงียบ ไม่มีแถวใหม่ใน Executions</td><td>ยังไม่เปิด Use webhook</td><td>เปิดสวิตช์ตามขั้น L1-02</td></tr>
+      <tr><td>Reply to LINE ขึ้น 401</td><td>token ผิด หรือลืมคำว่า <code>Bearer </code></td><td>แก้ credential ตามขั้น L1-04</td></tr>
+      <tr><td>Reply to LINE ขึ้น Invalid reply token</td><td>AI ตอบช้าเกินไป</td><td>ใช้โมเดลที่เร็วขึ้น หรือย่อ System Message</td></tr>
+      <tr><td>ลูกค้าได้คำตอบสองข้อความ</td><td>ข้อความตอบกลับอัตโนมัติยังเปิดอยู่</td><td>ปิดตามขั้น L1-03</td></tr>
+      <tr><td>AI Agent ขึ้น 429 / insufficient_quota</td><td>OpenAI ไม่มีเครดิต</td><td>เติมเครดิตในหน้า Billing ของ OpenAI</td></tr>
+      <tr><td>ส่งสติกเกอร์หรือรูปแล้วบอทไม่ตอบ</td><td>template ตอบเฉพาะข้อความตัวอักษร</td><td>เป็นพฤติกรรมปกติ</td></tr>
+    </tbody>
+  </table></div>
+  <div class="note ok"><b>พร้อมไป Lab 2</b> ถัดไปคุณจะแก้ System Message ให้ AI กลายเป็นผู้ช่วยคลังสินค้าที่ตอบตาม Role และ Rules ของ Logistics</div>
+</section>
+</div>
+
+<!-- ============ LAB 2 ============ -->
+<div class="track" data-track="lab2" data-name="Lab 2" data-code="L2" data-tag="Teach Your AI · 60 นาที">
+<section class="step" id="lab2-1" data-title="เป้าหมายของ Lab" data-code="L2-01">
+  <div class="step-head"><span class="code-badge">L2-01</span><span class="chip time">11:00–12:00</span></div>
+  <h2>Lab 2 · Teach Your AI</h2>
+  <p>ใน Lab นี้ใช้ Starter Workflow ตัวเต็ม <b>2_Fakduai Lab - AI Warehouse Assistant + Direct Sheets Queue</b> ซึ่งต่อยอดจาก Lab 1 ด้วยเครื่องมือ (Tool) 3 ตัว เป้าหมายคือสอน AI ให้ทำงานเป็นผู้ช่วยคลังสินค้า ผ่าน System Message ที่มี Role, Rules และรูปแบบคำตอบ</p>
+  <figure class="shot"><a href="img/w2-overview.jpg" target="_blank" rel="noopener"><img src="img/w2-overview.jpg" alt="Workflow AI Warehouse Assistant มี AI Agent, OpenAI Chat Model และ Tool 3 ตัว" loading="lazy"></a><figcaption>กรอบส้ม: AI Agent, OpenAI Chat Model และ Tool ทั้ง 3 ตัวที่ AI เรียกใช้ได้</figcaption></figure>
+  <div class="tbl"><table>
+    <thead><tr><th>ส่วน</th><th>Lab 1</th><th>Lab 2–4</th></tr></thead>
+    <tbody>
+      <tr><td>Chat Model</td><td>OpenAI รุ่นเล็ก</td><td><code>gpt-6-luna</code> เปิด <b>Use Responses API</b></td></tr>
+      <tr><td>Memory</td><td>Chat Memory 10 ข้อความ</td><td>Conversation Memory 8 ข้อความ แยกตาม <code>source.userId</code></td></tr>
+      <tr><td>Tools</td><td>ไม่มี</td><td>Inventory Lookup, Transaction Lookup, Create AGV Job</td></tr>
+    </tbody>
+  </table></div>
+  <h3>ก่อนเริ่ม: สลับ workflow ที่รับข้อความจาก LINE</h3>
+  <p>workflow ของ Lab 1 กับตัวเต็มใช้ Webhook path เดียวกัน (<code>line-webhook</code>) n8n เปิดใช้ path เดียวกันได้ทีละ workflow</p>
+  <ol class="do">
+    <li><div>เปิด workflow <b>LINE OA - AI Agent Auto Reply</b> ของ Lab 1 กดลูกศรข้างปุ่ม <b>Published</b> มุมขวาบน แล้วเลือกยกเลิกการ Publish (Unpublish)</div></li>
+    <li><div>เปิด workflow ตัวเต็ม เช็กว่าไม่มี node ไหนขึ้นเตือนสีแดง แล้วกด <b>Publish</b></div></li>
+    <li><div>ไม่ต้องแก้ Webhook URL ใน LINE เพราะ path เหมือนเดิม ส่งข้อความทดสอบ 1 ครั้ง แล้วดูว่ามีแถวใหม่ใน <b>Executions</b> ของ workflow ตัวเต็ม</div></li>
+  </ol>
+  <div class="note warn"><b>ต้องเปิด Use Responses API</b> ถ้าใช้ <code>gpt-6-luna</code> คู่กับ Tool แล้วขึ้น <i>Function tools with reasoning_effort are not supported</i> ให้ลบ node OpenAI Chat Model แล้วเพิ่มใหม่ node รุ่นใหม่จะเปิดตัวเลือกนี้ให้อัตโนมัติ</div>
+</section>
+
+<section class="step" id="lab2-2" data-title="อ่าน System Message" data-code="L2-02">
+  <div class="step-head"><span class="code-badge">L2-02</span><span class="chip n8n">n8n</span><span class="chip time">10 นาที</span></div>
+  <h2>อ่าน System Message</h2>
+  <ol class="do">
+    <li><div>เปิด workflow ของกลุ่ม แล้วดับเบิลคลิก node <b>AI Agent</b> ช่อง <b>Prompt (User Message)</b> คือข้อความจาก LINE ส่วนช่อง <b>System Message</b> คือคำสั่งประจำตัวของ AI
+      <figure class="shot"><a href="img/w2-agent.jpg" target="_blank" rel="noopener"><img src="img/w2-agent.jpg" alt="node AI Agent ช่อง Prompt และ System Message" loading="lazy"></a></figure>
+    </div></li>
+    <li><div>System Message ของ Template แบ่งเป็น 4 ส่วน
+      <div class="tbl"><table>
+        <thead><tr><th>ส่วน</th><th>ตัวอย่างใน Template</th><th>หน้าที่</th></tr></thead>
+        <tbody>
+          <tr><td><b>Role</b></td><td>คุณคือ AI Warehouse Assistant ของ Fakduai Lab</td><td>บอกว่า AI เป็นใคร ทำงานอะไร</td></tr>
+          <tr><td><b>กฎการค้นหา</b></td><td>ใช้ Inventory Lookup ก่อนตอบ ห้ามเดาข้อมูล</td><td>บังคับให้ใช้ข้อมูลจริง</td></tr>
+          <tr><td><b>กฎการสร้างงาน AGV</b></td><td>สรุปแล้วถาม "ยืนยันสร้างงาน AGV หรือไม่?"</td><td>ป้องกันการสั่งงานผิด</td></tr>
+          <tr><td><b>ตัวอย่าง</b></td><td>ผู้ใช้: เบิก A001 10 ชิ้น → คุณ: ตรวจพบ…</td><td>สอนรูปแบบคำตอบด้วยตัวอย่าง</td></tr>
+        </tbody>
+      </table></div>
+    </div></li>
+  </ol>
+  <details class="check"><summary>ดู System Message ฉบับเต็มของ Template</summary><pre class="sysmsg" id="sysmsgFull">คุณคือ AI Warehouse Assistant ของ Fakduai Lab ช่วยค้นหา Inventory และสร้างงานให้ AGV
+
+กฎการค้นหา:
+1. เมื่อถามถึง SKU ชื่อสินค้า Stock หรือ Location ให้ใช้ Inventory Lookup ก่อนตอบ ห้ามเดาข้อมูล
+2. ตอบภาษาไทยแบบกระชับ ระบุ SKU ชื่อสินค้า Stock และ Location
+
+กฎการสร้างงาน AGV:
+1. RECEIVE/รับเข้า ใช้ Type=IN ส่วน PICK/เบิก/จ่ายออก ใช้ Type=OUT
+2. ต้องทราบ SKU, Quantity และ Location หากข้อมูลไม่ครบให้ถามเพิ่ม
+3. ตรวจ Inventory ก่อนเสมอ เพื่อยืนยันสินค้า Location Stock และ Capacity
+4. ห้ามสร้างงาน OUT หาก Quantity มากกว่า Stock และห้ามสร้างงาน IN หากเกิน Capacity
+5. ก่อนสร้างงาน ให้สรุป Type, SKU, Quantity, Location และถามว่า “ยืนยันสร้างงาน AGV หรือไม่?”
+6. ห้ามเรียก Create AGV Job จนกว่าผู้ใช้จะตอบยืนยันอย่างชัดเจนในข้อความถัดมา
+7. หลังยืนยัน ให้เรียก Create AGV Job เพียงครั้งเดียว เครื่องมือนี้จะ Append แถวลง Transactions โดยตรง
+8. หลัง Tool สำเร็จ ให้แจ้งสถานะ PENDING พร้อมบอกให้เปิด Warehouse Simulator และ Auto Sync
+9. การสร้างงานยังไม่เปลี่ยน Stock; Stock จะเปลี่ยนเมื่อ AGV ทำงานเสร็จและสถานะเป็น COMPLETED
+10. ห้ามแก้ Inventory หรือ Stock โดยตรงจาก n8n
+
+ตัวอย่าง:
+ผู้ใช้: เบิก A001 10 ชิ้น
+คุณ: ตรวจพบ A001 ที่ B2-03 คงเหลือ 50 ชิ้น ต้องการ PICK 10 ชิ้น ยืนยันสร้างงาน AGV หรือไม่?
+ผู้ใช้: ยืนยัน
+คุณ: เรียก Create AGV Job ด้วย Type=OUT, Location=B2-03, SKU=A001, Quantity=10</pre><div class="copyline"><button class="btn" id="copySys">คัดลอก System Message เดิม</button></div><p>เก็บฉบับนี้ไว้ก่อนแก้ จะได้ย้อนกลับได้ถ้าแก้แล้วบอทตอบเพี้ยน</p></details>
+</section>
+
+<section class="step" id="lab2-3" data-title="แก้ปัญหา Markdown ใน LINE" data-code="L2-03">
+  <div class="step-head"><span class="code-badge">L2-03</span><span class="chip n8n">n8n</span><span class="chip time">10 นาที</span></div>
+  <h2>แก้ปัญหา Markdown ใน LINE</h2>
+  <p>ปัญหานี้เจอจริงตอนทดสอบ Template คำตอบของ AI มีเครื่องหมาย <code>**</code> และ <code>\n</code> ติดมา แต่ LINE ไม่แปลง Markdown ผู้ใช้จึงเห็นเครื่องหมายเหล่านี้ตรง ๆ</p>
+  <figure class="shot"><a href="img/w2-markdown-issue.jpg" target="_blank" rel="noopener"><img src="img/w2-markdown-issue.jpg" alt="Output ของ AI Agent มี ** และ \n ติดมา" loading="lazy"></a><figcaption>Output จริง: "สถานะ **PENDING** ครับ\n\n กรุณาเปิด…"</figcaption></figure>
+  <ol class="do">
+    <li><div>ดับเบิลคลิก <b>AI Agent</b> คลิกในช่อง <b>System Message</b> แล้วเลื่อนลงไปท้ายสุด</div></li>
+    <li><div>เพิ่มหัวข้อนี้ต่อท้าย ก่อนคำว่า "ตัวอย่าง:"
+      <pre class="snippet" id="snipFormat">รูปแบบคำตอบ:
+1. ตอบเป็นข้อความธรรมดา ห้ามใช้ Markdown เช่น ** หรือ #
+2. ขึ้นบรรทัดใหม่ด้วยการเว้นบรรทัดจริง ห้ามพิมพ์ \n
+3. ไม่เกิน 4 บรรทัด</pre>
+      <div class="copyline"><button class="btn" data-copy-from="snipFormat">คัดลอกกฎรูปแบบคำตอบ</button></div>
+    </div></li>
+    <li><div>ปิดหน้าต่าง node แล้วกด <b>Publish</b> ที่มุมขวาบน</div></li>
+  </ol>
+  <div class="note warn"><b>แก้แล้วต้อง Publish ทุกครั้ง</b> LINE เรียกใช้เฉพาะเวอร์ชันที่ Publish แล้ว ถ้าแก้อย่างเดียว บอทใน LINE จะยังตอบแบบเดิม</div>
+</section>
+
+<section class="step" id="lab2-4" data-title="ปรับ Role และน้ำเสียง" data-code="L2-04">
+  <div class="step-head"><span class="code-badge">L2-04</span><span class="chip n8n">n8n</span><span class="chip time">15 นาที</span></div>
+  <h2>ปรับ Role และน้ำเสียง</h2>
+  <p>กลุ่มเลือกบุคลิกของผู้ช่วย 1 แบบ แล้วแก้บรรทัดแรกของ System Message (ส่วน Role) ตัวอย่างด้านล่างนำไปปรับต่อได้</p>
+  <div class="grid">
+    <div><strong>หัวหน้าคลังมืออาชีพ</strong><pre class="snippet" id="snipRole1">คุณคือหัวหน้าคลังสินค้าของ Fakduai Lab ตอบสุภาพ ลงท้ายด้วย "ครับ" บอกตัวเลขชัดเจนเสมอ</pre><button class="btn" data-copy-from="snipRole1">คัดลอก</button></div>
+    <div><strong>ผู้ช่วยหน้างาน</strong><pre class="snippet" id="snipRole2">คุณคือผู้ช่วยพนักงานหน้างานในคลัง ตอบสั้น เป็นกันเอง ลงท้ายด้วย "ค่ะ" ขึ้นต้นด้วยรหัส Location เสมอ</pre><button class="btn" data-copy-from="snipRole2">คัดลอก</button></div>
+    <div><strong>ผู้ตรวจสต็อก</strong><pre class="snippet" id="snipRole3">คุณคือผู้ตรวจสต็อกของ Fakduai Lab เมื่อ Stock ต่ำกว่า 20% ของ Capacity ให้เตือนว่า "ใกล้หมด" ทุกครั้ง</pre><button class="btn" data-copy-from="snipRole3">คัดลอก</button></div>
+  </div>
+  <h3>เพิ่ม Rule กันคำถามนอกเรื่อง</h3>
+  <pre class="snippet" id="snipScope">ถ้าผู้ใช้ถามเรื่องที่ไม่เกี่ยวกับคลังสินค้า ให้ตอบสุภาพว่าช่วยได้เฉพาะเรื่อง Inventory และงาน AGV</pre>
+  <div class="copyline"><button class="btn" data-copy-from="snipScope">คัดลอก Rule</button></div>
+  <div class="note"><b>เคล็ดลับ</b> แก้ทีละเรื่อง แล้ว Publish และทดสอบทันที จะรู้ได้ว่าการแก้ข้อไหนทำให้คำตอบเปลี่ยน</div>
+</section>
+
+<section class="step" id="lab2-5" data-title="ทดสอบและเทียบผล" data-code="L2-05">
+  <div class="step-head"><span class="code-badge">L2-05</span><span class="chip line">LINE</span><span class="chip n8n">n8n</span><span class="chip time">15 นาที</span></div>
+  <h2>ทดสอบและเทียบผล</h2>
+  <p>ส่งคำถามเหล่านี้ใน LINE แล้วจดว่าคำตอบเป็นไปตามที่คาดหรือไม่</p>
+  <div class="tbl"><table>
+    <thead><tr><th>คำถาม</th><th>สิ่งที่ควรเห็น</th><th></th></tr></thead>
+    <tbody>
+      <tr><td>A001 เหลือเท่าไหร่ อยู่ตรงไหน</td><td>บอก SKU ชื่อสินค้า Stock และ Location ไม่มี <code>**</code></td><td><button class="btn" data-copy="A001 เหลือเท่าไหร่ อยู่ตรงไหน">คัดลอก</button></td></tr>
+      <tr><td>สวัสดี วันนี้อากาศเป็นยังไง</td><td>ปฏิเสธสุภาพ ตาม Rule นอกเรื่อง</td><td><button class="btn" data-copy="สวัสดี วันนี้อากาศเป็นยังไง">คัดลอก</button></td></tr>
+      <tr><td>มีสินค้าอะไรบ้างที่ Location A1</td><td>ไล่รายการจาก Inventory ไม่เดา</td><td><button class="btn" data-copy="มีสินค้าอะไรบ้างที่ Location A1">คัดลอก</button></td></tr>
+    </tbody>
+  </table></div>
+  <p>ถ้าคำตอบไม่ตรง ให้เปิด <b>Executions</b> › คลิกแถวล่าสุด › ดับเบิลคลิก <b>AI Agent</b> ดูแท็บ <b>Output</b> แล้วกลับไปแก้ System Message</p>
+</section>
+
+<section class="step" id="lab2-6" data-title="สรุป Lab 2" data-code="L2-06">
+  <div class="step-head"><span class="code-badge">L2-06</span><span class="chip time">5 นาที</span></div>
+  <h2>สรุป Lab 2</h2>
+  <div class="grid">
+    <div><strong>Role</strong>กำหนดตัวตนและน้ำเสียง</div>
+    <div><strong>Rules</strong>กำหนดสิ่งที่ต้องทำและห้ามทำ เช่น ห้ามเดาข้อมูล</div>
+    <div><strong>Format</strong>กำหนดหน้าตาคำตอบให้เหมาะกับ LINE</div>
+    <div><strong>Example</strong>สอนด้วยตัวอย่างจริง ได้ผลกว่าคำอธิบายยาว ๆ</div>
+  </div>
+  <details class="check"><summary>เช็กความเข้าใจ: แก้ System Message แล้ว แต่บอทใน LINE ยังตอบแบบเดิม เพราะอะไร?</summary><p>ยังไม่ได้กด Publish LINE เรียก Production URL ซึ่งใช้เวอร์ชันที่ Publish ล่าสุดเท่านั้น</p></details>
+  <details class="check"><summary>เช็กความเข้าใจ: ทำไมต้องมีกฎ "ห้ามเดาข้อมูล"?</summary><p>ถ้าไม่มีกฎนี้ AI อาจแต่งตัวเลข Stock ขึ้นมาเองให้ฟังดูน่าเชื่อ ซึ่งอันตรายกับงานคลังจริง กฎนี้บังคับให้เรียก Inventory Lookup ก่อน ซึ่งจะได้เห็นใน Lab 3</p></details>
+  <div class="note ok"><b>พร้อมไป Lab 3</b> ถัดไปจะดูว่า AI ดึงข้อมูลจาก Google Sheets ยังไง และลองแก้ข้อมูลของกลุ่มเอง</div>
+</section>
+</div>
+
+<!-- ============ LAB 3 ============ -->
+<div class="track" data-track="lab3" data-name="Lab 3" data-code="L3" data-tag="Warehouse Data · 40 นาที">
+<section class="step" id="lab3-1" data-title="Google Sheets คือ Mock WMS" data-code="L3-01">
+  <div class="step-head"><span class="code-badge">L3-01</span><span class="chip time">13:00–13:40</span></div>
+  <h2>Lab 3 · Warehouse Data</h2>
+  <p>Google Sheets ทำหน้าที่เป็น Mock WMS และเป็น Source of Truth แต่ละกลุ่มได้ Sheet ของตัวเอง 1 ชุด แก้ข้อมูลได้โดยไม่กระทบกลุ่มอื่น ไฟล์ Template ชื่อ <b>AI Warehouse Workshop — Que AGV</b> มี 2 แท็บ</p>
+  <h3>แท็บ Inventory: สินค้าในแต่ละตำแหน่ง</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>คอลัมน์</th><th>ตัวอย่าง</th><th>ความหมาย</th></tr></thead>
+    <tbody>
+      <tr><td><code>Location</code></td><td>B2-03</td><td>ตำแหน่งชั้นวาง ตรงกับป้ายใน Simulator</td></tr>
+      <tr><td><code>SKU</code></td><td>A001</td><td>รหัสสินค้า</td></tr>
+      <tr><td><code>Name</code></td><td>UHT Milk</td><td>ชื่อสินค้า</td></tr>
+      <tr><td><code>Category</code></td><td>Dairy</td><td>หมวดสินค้า</td></tr>
+      <tr><td><code>Stock</code></td><td>80</td><td>จำนวนคงเหลือ</td></tr>
+      <tr><td><code>Capacity</code></td><td>100</td><td>ความจุสูงสุดของตำแหน่ง</td></tr>
+      <tr><td><code>Color</code></td><td>#69a7ff</td><td>สีที่ใช้แสดงใน Simulator</td></tr>
+    </tbody>
+  </table></div>
+  <h3>แท็บ Transactions: งานรับเข้าและเบิกออก</h3>
+  <p>13 คอลัมน์: <code>Operation ID</code>, <code>Timestamp</code>, <code>Type</code>, <code>Location</code>, <code>SKU</code>, <code>Quantity</code>, <code>Balance</code>, <code>Status</code>, <code>Started At</code>, <code>Completed At</code>, <code>Message</code>, <code>Source</code>, <code>Worker</code> จะใช้เต็มที่ใน Lab 4</p>
+</section>
+
+<section class="step" id="lab3-2" data-title="เปิด Google Sheet ของกลุ่ม" data-code="L3-02">
+  <div class="step-head"><span class="code-badge">L3-02</span><span class="chip sheet">Sheets</span><span class="chip time">5 นาที</span></div>
+  <h2>เปิด Google Sheet ของกลุ่ม</h2>
+  <ol class="do">
+    <li><div>เปิด Google Sheet ของกลุ่มจาก QR หรือลิงก์ที่ทีมงานแจก ชื่อไฟล์จะขึ้นต้นด้วย <b>AI Warehouse Workshop</b> วางไว้ข้างหน้าต่าง n8n</div></li>
+    <li><div>แท็บ <b>Inventory</b> ด้านล่าง มี 9 แถว ตรงกับชั้นวาง 9 ตำแหน่งใน Simulator หาแถวของ <b>A001 UHT Milk</b> ที่ Location <b>B2-03</b>
+      <figure class="shot"><a href="img/s3-inventory.jpg" target="_blank" rel="noopener"><img src="img/s3-inventory.jpg" alt="แท็บ Inventory ใน Google Sheet มีคอลัมน์ Location ถึง Color" loading="lazy"></a><figcaption>แถว A001: Stock 80 จาก Capacity 100</figcaption></figure>
+    </div></li>
+    <li><div>คลิกแท็บ <b>Transactions</b> ทุกงานรับเข้า (IN) และเบิกออก (OUT) จะอยู่ที่นี่ คอลัมน์ <b>Status</b> บอกว่างานเสร็จแล้วหรือยัง
+      <figure class="shot"><a href="img/s3-transactions.jpg" target="_blank" rel="noopener"><img src="img/s3-transactions.jpg" alt="แท็บ Transactions ใน Google Sheet" loading="lazy"></a><figcaption>กรอบส้ม: Type (IN/OUT) และ Status</figcaption></figure>
+    </div></li>
+  </ol>
+  <div class="note warn"><b>อย่าลบหรือเปลี่ยนชื่อหัวคอลัมน์</b> n8n และ Simulator อ่านข้อมูลจากชื่อคอลัมน์ ถ้าชื่อเปลี่ยน ระบบจะหาข้อมูลไม่เจอ แก้ได้เฉพาะค่าในแถว</div>
+</section>
+
+<section class="step" id="lab3-3" data-title="คัดลอกลิงก์ Sheet" data-code="L3-03">
+  <div class="step-head"><span class="code-badge">L3-03</span><span class="chip sheet">Sheets</span><span class="chip time">3 นาที</span></div>
+  <h2>คัดลอกลิงก์ Sheet</h2>
+  <p>ลิงก์นี้จะใช้เชื่อม Warehouse Simulator กับ Sheet ของกลุ่มใน Lab 4 เก็บไว้ในแชทกลุ่ม LINE หรือโน้ตได้เลย</p>
+  <ol class="do">
+    <li><div>กดปุ่ม <b>แชร์</b> มุมขวาบนของ Google Sheet</div></li>
+    <li><div>ดูหัวข้อ <b>การเข้าถึงทั่วไป</b> ต้องเป็น <b>ทุกคนที่มีลิงก์</b> และสิทธิ์ <b>เอดิเตอร์</b> ทีมงานตั้งไว้ให้แล้ว ไม่ต้องแก้</div></li>
+    <li><div>กด <b>คัดลอกลิงก์</b> แล้วกด <b>เสร็จสิ้น</b>
+      <figure class="shot"><a href="img/s3-share.jpg" target="_blank" rel="noopener"><img src="img/s3-share.jpg" alt="หน้าต่างแชร์ของ Google Sheet ปุ่มคัดลอกลิงก์" loading="lazy"></a><figcaption>อีเมลเจ้าของไฟล์ในภาพถูกเบลอไว้</figcaption></figure>
+    </div></li>
+  </ol>
+  <div class="note">ลิงก์จะหน้าตาแบบ <code>https://docs.google.com/spreadsheets/d/…/edit?usp=sharing</code> ถ้าไม่ได้ขึ้นว่า "ทุกคนที่มีลิงก์" ให้แจ้งทีมงาน เพราะ Simulator จะเชื่อมต่อไม่ได้</div>
+</section>
+
+<section class="step" id="lab3-4" data-title="Tool คืออะไร" data-code="L3-04">
+  <div class="step-head"><span class="code-badge">L3-04</span><span class="chip n8n">n8n</span><span class="chip time">8 นาที</span></div>
+  <h2>Tool คืออะไร</h2>
+  <p>Tool คือเครื่องมือที่ AI <b>เลือกเรียกเอง</b> เมื่อคิดว่าต้องใช้ AI รู้ว่าเครื่องมือแต่ละตัวทำอะไร จาก <b>Tool Description</b></p>
+  <ol class="do">
+    <li><div>ดับเบิลคลิก node <b>Inventory Lookup</b> ดูช่อง <b>Description</b> และไฟล์กับแท็บที่ชี้อยู่
+      <figure class="shot"><a href="img/w2-inventory-tool.jpg" target="_blank" rel="noopener"><img src="img/w2-inventory-tool.jpg" alt="node Inventory Lookup ช่อง Description, Document และ Sheet" loading="lazy"></a></figure>
+    </div></li>
+    <li><div>Tool ทั้ง 3 ตัวใน Template
+      <div class="tbl"><table>
+        <thead><tr><th>Tool</th><th>Operation</th><th>ใช้เมื่อ</th></tr></thead>
+        <tbody>
+          <tr><td><b>Inventory Lookup</b></td><td>Get Row(s) แท็บ Inventory</td><td>ถาม SKU ชื่อสินค้า Stock หรือ Location</td></tr>
+          <tr><td><b>Transaction Lookup</b></td><td>Get Row(s) แท็บ Transactions</td><td>ถามประวัติการรับเข้าและเบิกออก</td></tr>
+          <tr><td><b>Create AGV Job</b></td><td>Append แท็บ Transactions</td><td>หลังผู้ใช้ยืนยันเท่านั้น (Lab 4)</td></tr>
+        </tbody>
+      </table></div>
+    </div></li>
+  </ol>
+  <div class="note warn"><b>Sheet ของกลุ่ม</b> ทีมงานจะตั้ง Document ใน Tool ทั้ง 3 ตัวให้ชี้ไปที่ Sheet ของกลุ่มแล้ว ถ้าเห็นชื่อไฟล์ไม่ตรงกับของกลุ่ม ให้แจ้งทีมงาน</div>
+</section>
+
+<section class="step" id="lab3-5" data-title="ถามข้อมูลคลังผ่าน LINE" data-code="L3-05">
+  <div class="step-head"><span class="code-badge">L3-05</span><span class="chip line">LINE</span><span class="chip n8n">n8n</span><span class="chip time">10 นาที</span></div>
+  <h2>ถามข้อมูลคลังผ่าน LINE</h2>
+  <ol class="do">
+    <li><div>ส่งคำถามใน LINE
+      <div class="copyline"><div class="val">A001 เหลือเท่าไหร่ และอยู่ตรงไหน?</div><button class="btn" data-copy="A001 เหลือเท่าไหร่ และอยู่ตรงไหน?">คัดลอก</button></div>
+      <div class="chat"><div class="bub me">A001 เหลือเท่าไหร่ และอยู่ตรงไหน?</div><div class="bub bot">A001 UHT Milk คงเหลือ 80 ชิ้น อยู่ที่ Location B2-03</div></div>
+    </div></li>
+    <li><div>เปิด <b>Executions</b> › คลิกแถวล่าสุด › ดับเบิลคลิก <b>AI Agent</b> › แท็บ <b>Logs</b> จะเห็นลำดับที่ AI ทำงาน: อ่าน Memory → คิด → เรียก Tool → คิดต่อ → ตอบ
+      <figure class="shot"><a href="img/w3-agent-logs.jpg" target="_blank" rel="noopener"><img src="img/w3-agent-logs.jpg" alt="แท็บ Logs ของ AI Agent แสดงลำดับการเรียก Tool" loading="lazy"></a></figure>
+    </div></li>
+    <li><div>คลิก <b>Inventory Lookup</b> ใน Logs ฝั่ง Output คือแถวทั้งหมดจาก Sheet ที่ AI ได้รับไปอ่าน
+      <figure class="shot"><a href="img/w3-inventory-tool-output.jpg" target="_blank" rel="noopener"><img src="img/w3-inventory-tool-output.jpg" alt="Output ของ Inventory Lookup เป็นแถวข้อมูลจาก Sheet" loading="lazy"></a></figure>
+    </div></li>
+  </ol>
+  <details class="check"><summary>เช็กความเข้าใจ: AI รู้ได้ยังไงว่า A001 อยู่ B2-03?</summary><p>AI ไม่ได้จำมา แต่เรียก Inventory Lookup ซึ่งอ่านทุกแถวจากแท็บ Inventory แล้วหาแถวที่ SKU เป็น A001 ถ้าข้อมูลใน Sheet เปลี่ยน คำตอบก็เปลี่ยนตาม</p></details>
+</section>
+
+<section class="step" id="lab3-6" data-title="แก้ข้อมูลใน Sheet" data-code="L3-06">
+  <div class="step-head"><span class="code-badge">L3-06</span><span class="chip line">LINE</span><span class="chip time">10 นาที</span></div>
+  <h2>แก้ข้อมูลใน Sheet</h2>
+  <p>พิสูจน์ว่า Sheet คือ Source of Truth: แก้ข้อมูลแล้วถามใหม่ คำตอบต้องเปลี่ยนตามทันที โดยไม่ต้องแก้ n8n</p>
+  <ol class="do">
+    <li><div>ใน Sheet ของกลุ่ม แท็บ <b>Inventory</b> แก้ <code>Stock</code> ของ A001 เป็นตัวเลขใหม่ เช่น <code>45</code></div></li>
+    <li><div>ถามใน LINE อีกครั้งว่า "A001 เหลือเท่าไหร่" คำตอบต้องเป็น 45</div></li>
+    <li><div>เติมของให้ชั้นที่ว่าง: แถว <b>R001 Rice Flour</b> ที่ <b>A1-01</b> ตอนนี้ Stock เป็น 0 แก้เป็น <code>30</code> แล้วถามใน LINE ว่า "Rice Flour อยู่ตรงไหน เหลือเท่าไหร่"</div></li>
+  </ol>
+  <div class="note warn"><b>แก้ได้แต่อย่าเพิ่มแถว</b> Simulator มีชั้นวาง 9 ตำแหน่งตรงกับ 9 แถวใน Inventory ถ้าเพิ่มแถวหรือใส่ Location ที่ไม่มีจริง จะไม่เห็นใน Simulator ตอน Lab 4 ก่อนจบ Lab แนะนำให้แก้ Stock กลับเป็นค่าเดิม</div>
+</section>
+
+<section class="step" id="lab3-7" data-title="ประวัติจาก Transactions" data-code="L3-07">
+  <div class="step-head"><span class="code-badge">L3-07</span><span class="chip line">LINE</span><span class="chip n8n">n8n</span><span class="chip time">5 นาที</span></div>
+  <h2>ประวัติจาก Transactions</h2>
+  <ol class="do">
+    <li><div>ถามประวัติการเคลื่อนไหว
+      <div class="copyline"><div class="val">A001 มีการรับเข้าหรือเบิกออกอะไรบ้าง</div><button class="btn" data-copy="A001 มีการรับเข้าหรือเบิกออกอะไรบ้าง">คัดลอก</button></div>
+    </div></li>
+    <li><div>ดูใน Logs ว่า AI เลือกเรียก <b>Transaction Lookup</b> แทน Inventory Lookup</div></li>
+    <li><div><b>ภารกิจ:</b> Description ของ Transaction Lookup ใน Template เขียนติดกันว่า "Type,Location,SKU,Quantity,Balance,Statusใช้เครื่องมือนี้…" ลองแก้ให้เว้นวรรคและอ่านง่าย แล้ว Publish ดูว่า AI เลือก Tool แม่นขึ้นไหม</div></li>
+  </ol>
+</section>
+
+<section class="step" id="lab3-8" data-title="สรุป Lab 3" data-code="L3-08">
+  <div class="step-head"><span class="code-badge">L3-08</span><span class="chip time">2 นาที</span></div>
+  <h2>สรุป Lab 3</h2>
+  <div class="grid">
+    <div><strong>Source of Truth</strong>ข้อมูลอยู่ใน Sheet ไม่ได้อยู่ใน AI</div>
+    <div><strong>Tool</strong>AI เลือกเรียกเครื่องมือเองจาก Description</div>
+    <div><strong>Logs</strong>ตรวจได้ว่า AI เรียก Tool ไหน ได้ข้อมูลอะไรกลับมา</div>
+  </div>
+  <details class="check"><summary>เช็กความเข้าใจ: ถ้าลบ Inventory Lookup ออก แล้วถาม "A001 เหลือเท่าไหร่" จะเกิดอะไรขึ้น?</summary><p>AI จะไม่มีทางรู้ตัวเลขจริง ถ้า System Message มีกฎ "ห้ามเดา" AI ควรตอบว่าตรวจสอบไม่ได้ ถ้าไม่มีกฎนี้ AI อาจแต่งตัวเลขขึ้นมา</p></details>
+  <div class="note ok"><b>พร้อมไป Lab 4</b> ถัดไป AI จะไม่ได้แค่อ่านข้อมูล แต่จะสั่งงาน AGV ให้รับเข้าและเบิกสินค้า</div>
+</section>
+</div>
+
+<!-- ============ LAB 4 ============ -->
+<div class="track" data-track="lab4" data-name="Lab 4" data-code="L4" data-tag="Simulator &amp; AGV · 50 นาที">
+<section class="step" id="lab4-1" data-title="Flow ของงาน AGV" data-code="L4-01">
+  <div class="step-head"><span class="code-badge">L4-01</span><span class="chip time">13:40–14:30</span></div>
+  <h2>Lab 4 · Warehouse Simulator &amp; AGV</h2>
+  <p>สั่งรับเข้า (Receive) และเบิกออก (Pick) ผ่าน LINE แล้วดู AGV ใน Simulator ทำงานจริง จบ Lab นี้ข้อมูลใน LINE, Sheet และ Simulator ต้องตรงกัน</p>
+  <div class="flowmap">
+    <div class="node hot"><div class="n-k">1</div><div class="n-t">LINE</div><div class="n-d">"เบิก A001 10 ชิ้น"</div></div>
+    <div class="arrow">→</div>
+    <div class="node hot"><div class="n-k">2</div><div class="n-t">AI ตรวจ</div><div class="n-d">Inventory Lookup แล้วถามยืนยัน</div></div>
+    <div class="arrow">→</div>
+    <div class="node hot"><div class="n-k">3</div><div class="n-t">Create AGV Job</div><div class="n-d">Append แถว PENDING</div></div>
+    <div class="arrow">→</div>
+    <div class="node hot"><div class="n-k">4</div><div class="n-t">Simulator</div><div class="n-d">Auto Sync รับงาน AGV วิ่ง</div></div>
+    <div class="arrow">→</div>
+    <div class="node hot"><div class="n-k">5</div><div class="n-t">COMPLETED</div><div class="n-d">Stock เปลี่ยน</div></div>
+  </div>
+  <figure class="shot"><a href="img/w4-exec-overview.jpg" target="_blank" rel="noopener"><img src="img/w4-exec-overview.jpg" alt="Execution ที่ AI เรียก Inventory Lookup และ Create AGV Job สำเร็จ" loading="lazy"></a><figcaption>Execution จริงตอนตอบ "ยืนยัน": Inventory Lookup ส่งข้อมูลกลับ 9 แถว และ Create AGV Job เพิ่มงาน 1 แถว</figcaption></figure>
+  <div class="note"><b>Stock ไม่เปลี่ยนตอนสร้างงาน</b> n8n แค่เพิ่มงานสถานะ PENDING ลงแท็บ Transactions Stock จะเปลี่ยนเมื่อ AGV ทำงานเสร็จและสถานะเป็น COMPLETED เหมือนคลังจริงที่ของยังไม่ขยับจนกว่ารถจะขนเสร็จ</div>
+</section>
+
+<section class="step" id="lab4-2" data-title="เชื่อม Simulator กับ Sheet ของกลุ่ม" data-code="L4-02">
+  <div class="step-head"><span class="code-badge">L4-02</span><span class="chip sheet">Sheets</span><span class="chip time">5 นาที</span></div>
+  <h2>เชื่อม Simulator กับ Sheet ของกลุ่ม</h2>
+  <ol class="do">
+    <li><div>เปิด Simulator บน iPad หรือ Browser แล้ววางไว้ข้าง LINE
+      <div class="copyline"><div class="val">https://fakduai-warehouse-simulator.pages.dev/</div><button class="btn" data-copy="https://fakduai-warehouse-simulator.pages.dev/">คัดลอก</button><a class="btn primary" href="https://fakduai-warehouse-simulator.pages.dev/" target="_blank" rel="noopener">เปิด Simulator ↗</a></div>
+    </div></li>
+    <li><div>กดปุ่ม <b>Workshop Data</b> มุมขวาบน จะขึ้นหน้าต่าง <b>เชื่อมต่อ Google Sheet</b></div></li>
+    <li><div>วางลิงก์ Sheet ของกลุ่มจากขั้น L3-03 ในช่อง <b>Google Sheet URL</b> แล้วกด <b>เชื่อมต่อ Google Sheet</b> ต้องขึ้นข้อความ <b>เชื่อมต่อสำเร็จ · โหลด 9 ตำแหน่งจาก Inventory</b>
+      <figure class="shot"><a href="img/s4-connect-dialog.jpg" target="_blank" rel="noopener"><img src="img/s4-connect-dialog.jpg" alt="หน้าต่างเชื่อมต่อ Google Sheet ใน Simulator" loading="lazy"></a><figcaption>ปุ่ม "ใช้ข้อมูลตัวอย่าง" จะแสดงข้อมูลสมมติ ไม่ใช่ข้อมูลของกลุ่ม ห้ามกดตอนทำ Lab</figcaption></figure>
+    </div></li>
+    <li><div>ปิดหน้าต่าง แล้วตรวจ 3 จุด: <b>Auto Sync ON</b>, Workshop Data ขึ้น <b>ซิงก์แล้ว</b> พร้อมเวลา และป้าย <b>เชื่อมต่อ Google Sheet</b> สีเขียวที่แผงด้านขวา</div></li>
+    <li><div>ค้นหา <code>A001</code> ที่ช่องค้นหาด้านบน ชั้น <b>B2-03</b> จะถูกไฮไลต์ ตัวเลข Stock ต้องตรงกับในแท็บ Inventory ของกลุ่ม
+      <figure class="shot"><a href="img/s4-sim-synced.jpg" target="_blank" rel="noopener"><img src="img/s4-sim-synced.jpg" alt="Simulator เชื่อมต่อ Google Sheet แล้ว แสดง A001 Stock 80" loading="lazy"></a><figcaption>Stock 80 ตรงกับแถว A001 ใน Sheet</figcaption></figure>
+    </div></li>
+  </ol>
+  <div class="note warn"><b>ถ้าขึ้น "ซิงก์ไม่สำเร็จ"</b> ตรวจว่าวางลิงก์ครบทั้งบรรทัด และ Sheet แชร์เป็น "ทุกคนที่มีลิงก์" ตามขั้น L3-03 แล้วกด Refresh</div>
+</section>
+
+<section class="step" id="lab4-3" data-title="ดู Create AGV Job" data-code="L4-03">
+  <div class="step-head"><span class="code-badge">L4-03</span><span class="chip n8n">n8n</span><span class="chip time">8 นาที</span></div>
+  <h2>ดู Create AGV Job</h2>
+  <ol class="do">
+    <li><div>ดับเบิลคลิก node <b>Create AGV Job</b> Tool นี้ Append แถวใหม่ลงแท็บ <b>Transactions</b> คอลัมน์ที่ใช้ <code>$fromAI(…)</code> คือค่าที่ AI เติมเองจากบทสนทนา
+      <figure class="shot"><a href="img/w4-agv-mapping-top.jpg" target="_blank" rel="noopener"><img src="img/w4-agv-mapping-top.jpg" alt="Mapping ของ Create AGV Job ส่วน Type, Location, SKU" loading="lazy"></a></figure>
+    </div></li>
+    <li><div>เลื่อนลงจะเห็นคอลัมน์ที่ตั้งค่าตายตัว เช่น <b>Status = PENDING</b> และ <b>Source = N8N_CHAT</b>
+      <figure class="shot"><a href="img/w4-agv-mapping-bottom.jpg" target="_blank" rel="noopener"><img src="img/w4-agv-mapping-bottom.jpg" alt="Mapping ของ Create AGV Job ส่วน Status และ Source" loading="lazy"></a></figure>
+    </div></li>
+  </ol>
+  <div class="tbl"><table>
+    <thead><tr><th>คอลัมน์</th><th>ค่า</th><th>ใครกำหนด</th></tr></thead>
+    <tbody>
+      <tr><td><code>Operation ID</code></td><td>AGV-&lt;execution&gt;-&lt;เวลา&gt;</td><td>n8n สร้างอัตโนมัติ</td></tr>
+      <tr><td><code>Timestamp</code></td><td>เวลาปัจจุบัน</td><td>n8n</td></tr>
+      <tr><td><code>Type</code></td><td>IN หรือ OUT</td><td><b>AI</b></td></tr>
+      <tr><td><code>Location</code></td><td>เช่น B2-03</td><td><b>AI</b> จาก Inventory</td></tr>
+      <tr><td><code>SKU</code></td><td>เช่น A001</td><td><b>AI</b> จาก Inventory</td></tr>
+      <tr><td><code>Quantity</code></td><td>จำนวนที่ผู้ใช้ยืนยัน</td><td><b>AI</b></td></tr>
+      <tr><td><code>Status</code> / <code>Message</code> / <code>Source</code></td><td>PENDING / Waiting for AGV / N8N_CHAT</td><td>ค่าตายตัว</td></tr>
+      <tr><td><code>Started At</code> / <code>Completed At</code> / <code>Worker</code></td><td>ว่าง</td><td>Simulator เติมตอน AGV ทำงาน</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section class="step" id="lab4-4" data-title="สั่งเบิกและยืนยัน" data-code="L4-04">
+  <div class="step-head"><span class="code-badge">L4-04</span><span class="chip line">LINE</span><span class="chip n8n">n8n</span><span class="chip time">10 นาที</span></div>
+  <h2>สั่งเบิกและยืนยัน</h2>
+  <ol class="do">
+    <li><div>ส่งคำสั่งเบิกใน LINE
+      <div class="copyline"><div class="val">เบิก A001 จำนวน 10 ชิ้น</div><button class="btn" data-copy="เบิก A001 จำนวน 10 ชิ้น">คัดลอก</button></div>
+      AI ต้อง<b>ยังไม่สร้างงาน</b> แต่ตรวจ Inventory แล้วสรุปให้ยืนยันก่อน
+      <figure class="shot"><a href="img/w4-confirm-question.jpg" target="_blank" rel="noopener"><img src="img/w4-confirm-question.jpg" alt="AI สรุป Type, SKU, Location แล้วถามยืนยัน" loading="lazy"></a><figcaption>ตัวอย่างจริง: "ตรวจพบ UHT Milk (SKU A001) ที่ B2-03 มีคงเหลือ 100 ชิ้น ต้องการเบิก 20 ชิ้น (Type=OUT) ยืนยันสร้างงาน AGV หรือไม่?"</figcaption></figure>
+    </div></li>
+    <li><div>ตอบยืนยัน
+      <div class="copyline"><div class="val">ยืนยัน</div><button class="btn" data-copy="ยืนยัน">คัดลอก</button></div>
+    </div></li>
+    <li><div>ใน Executions เปิด AI Agent › <b>Logs</b> › คลิก <b>Create AGV Job</b> ฝั่ง Input คือค่าที่ AI ส่งให้ Tool และฝั่ง Output คือแถวที่ถูกเพิ่มลง Sheet สถานะ <b>PENDING</b>
+      <figure class="shot"><a href="img/w4-agv-tool-call.jpg" target="_blank" rel="noopener"><img src="img/w4-agv-tool-call.jpg" alt="Input และ Output ของ Create AGV Job ใน Logs" loading="lazy"></a></figure>
+    </div></li>
+  </ol>
+  <details class="check"><summary>เช็กความเข้าใจ: ทำไม AI ไม่สร้างงานทันทีที่ได้คำสั่งแรก?</summary><p>กฎข้อ 5–6 ใน System Message บังคับให้สรุปและถามยืนยันก่อน และห้ามเรียก Create AGV Job จนกว่าผู้ใช้จะยืนยันชัดเจน ช่วยกันสั่งงานผิดจาก AI เข้าใจคำสั่งคลาดเคลื่อน</p></details>
+</section>
+
+<section class="step" id="lab4-5" data-title="ดู AGV ทำงาน" data-code="L4-05">
+  <div class="step-head"><span class="code-badge">L4-05</span><span class="chip time">7 นาที</span></div>
+  <h2>ดู AGV ทำงาน</h2>
+  <ol class="do">
+    <li><div>สลับไปที่ Simulator ภายในไม่กี่วินาที Auto Sync จะพบงาน PENDING ใหม่ AGV-OUT จะวิ่งไปที่ชั้นวาง B2-03</div></li>
+    <li><div>สถานะในแท็บ Transactions จะเปลี่ยนตามลำดับ <code>PENDING</code> → <code>RUNNING</code> → <code>COMPLETED</code> และคอลัมน์ Started At, Completed At, Balance ถูกเติม</div></li>
+    <li><div>เมื่อ COMPLETED Stock ของ A001 ลดลง 10 ชิ้น และ History ใน Simulator มีรายการ Pick A001 ใหม่</div></li>
+    <li><div>ถาม LINE อีกครั้ง "A001 เหลือเท่าไหร่" ตัวเลขต้องตรงกับ Simulator และ Sheet</div></li>
+  </ol>
+  <div class="grid">
+    <div><strong>LINE</strong>คำตอบของ AI</div>
+    <div><strong>Sheet</strong>Stock ในแท็บ Inventory และแถวใน Transactions</div>
+    <div><strong>Simulator</strong>Stock คงเหลือและ History</div>
+  </div>
+  <div class="note ok"><b>Checkpoint</b> ทั้งสามช่องทางต้องเห็นตัวเลขเดียวกัน ถ้าไม่ตรง ให้ดูว่างานยังค้างที่ PENDING หรือ Auto Sync ปิดอยู่</div>
+</section>
+
+<section class="step" id="lab4-6" data-title="Receive และทดสอบ Guardrails" data-code="L4-06">
+  <div class="step-head"><span class="code-badge">L4-06</span><span class="chip line">LINE</span><span class="chip time">10 นาที</span></div>
+  <h2>Receive และทดสอบ Guardrails</h2>
+  <p>ทดลองคำสั่งเหล่านี้ แล้วจดผลว่า AI ทำตามกฎหรือไม่</p>
+  <div class="tbl"><table>
+    <thead><tr><th>คำสั่ง</th><th>ผลที่ควรเป็น</th><th>กฎที่ทดสอบ</th><th></th></tr></thead>
+    <tbody>
+      <tr><td>รับเข้า A001 จำนวน 20 ชิ้น</td><td>ถามยืนยัน แล้วสร้างงาน Type=IN</td><td>RECEIVE ใช้ IN</td><td><button class="btn" data-copy="รับเข้า A001 จำนวน 20 ชิ้น">คัดลอก</button></td></tr>
+      <tr><td>เบิก A001 จำนวน 9999 ชิ้น</td><td>ปฏิเสธ เพราะเกิน Stock</td><td>ข้อ 4</td><td><button class="btn" data-copy="เบิก A001 จำนวน 9999 ชิ้น">คัดลอก</button></td></tr>
+      <tr><td>รับเข้า A001 จำนวน 500 ชิ้น</td><td>ปฏิเสธ เพราะเกิน Capacity</td><td>ข้อ 4</td><td><button class="btn" data-copy="รับเข้า A001 จำนวน 500 ชิ้น">คัดลอก</button></td></tr>
+      <tr><td>เบิกนม</td><td>ถามเพิ่มว่าจำนวนเท่าไหร่</td><td>ข้อ 2</td><td><button class="btn" data-copy="เบิกนม">คัดลอก</button></td></tr>
+      <tr><td>เบิก A001 5 ชิ้น → ตอบ "ยังก่อน"</td><td>ไม่สร้างงาน</td><td>ข้อ 6</td><td></td></tr>
+    </tbody>
+  </table></div>
+  <div class="note warn"><b>ถ้า AI ทำผิดกฎ</b> นี่คือโอกาสฝึกจาก Lab 2: กลับไปเขียนกฎใน System Message ให้ชัดขึ้น Publish แล้วทดสอบใหม่</div>
+</section>
+
+<section class="step" id="lab4-7" data-title="สรุป Lab 4" data-code="L4-07">
+  <div class="step-head"><span class="code-badge">L4-07</span><span class="chip time">5 นาที</span></div>
+  <h2>สรุป Lab 4</h2>
+  <div class="grid">
+    <div><strong>Confirm ก่อน Act</strong>AI ต้องสรุปและให้คนยืนยันก่อนสั่งงานจริง</div>
+    <div><strong>Queue</strong>n8n เพิ่มงาน PENDING ระบบหน้างานเป็นผู้ทำงานจริง</div>
+    <div><strong>Guardrails</strong>กฎกันเบิกเกิน Stock และรับเกิน Capacity</div>
+    <div><strong>One Truth</strong>LINE, Sheet และ Simulator เห็นข้อมูลเดียวกัน</div>
+  </div>
+  <details class="check"><summary>เช็กความเข้าใจ: ทำไม n8n ไม่แก้ Stock ในแท็บ Inventory ตรง ๆ?</summary><p>เพราะการสั่งงานยังไม่ใช่การขนของจริง ถ้าแก้ Stock ทันที แล้ว AGV ทำงานไม่สำเร็จ ตัวเลขในระบบจะไม่ตรงกับของจริงในคลัง Stock จึงเปลี่ยนเมื่องาน COMPLETED เท่านั้น ตรงกับกฎข้อ 9–10</p></details>
+  <div class="note ok"><b>จบทุก Lab แล้ว</b> ตอนนี้คุณผ่านครบทั้ง AI ที่สอนได้ ข้อมูลที่แก้ได้ และระบบสั่งงาน AGV เตรียมตัวตอบคำถามลุ้นรางวัลกับผู้สอน แล้วดูโซนถัดไปว่าจะนำกลับไปทำต่อเองได้ยังไง</div>
+</section>
+</div>
+
+<!-- ============ NEXT ============ -->
+<div class="track" data-track="next" data-name="ทำต่อเอง" data-code="N" data-tag="หลังจบบทเรียน" data-single="1">
+<section class="step" id="next-1" data-title="ไปต่อหลังจบบทเรียน" data-code="N">
+  <div class="step-head"><span class="code-badge">N</span><span class="chip time">ทำต่อที่บ้าน</span></div>
+  <h2>ไปต่อหลังจบบทเรียน</h2>
+  <p>ทุกอย่างที่ใช้ในวันนี้นำกลับไปสร้างระบบของตัวเองได้ ใช้ 4 อย่างด้านล่างประกอบกันเป็น AI Warehouse Assistant ชุดเดียวกับในห้อง โดยใช้ LINE OA ที่สร้างไว้ในโซน P ต่อได้เลย</p>
+  <div class="flowmap">
+    <div class="node"><div class="n-k">1</div><div class="n-t">Simulator</div><div class="n-d">Fork จาก GitHub</div></div>
+    <div class="arrow">+</div>
+    <div class="node"><div class="n-k">2</div><div class="n-t">Google Sheet</div><div class="n-d">ทำสำเนา Template</div></div>
+    <div class="arrow">+</div>
+    <div class="node"><div class="n-k">3</div><div class="n-t">n8n ของตัวเอง</div><div class="n-d">Cloud หรือ Self-host ฟรี</div></div>
+    <div class="arrow">+</div>
+    <div class="node"><div class="n-k">4</div><div class="n-t">Workflow</div><div class="n-d">Starter Template</div></div>
+  </div>
+
+  <h3>1 · Warehouse Simulator</h3>
+  <p>Source code ของ Simulator, Google Apps Script ที่เชื่อมกับ Sheet และไฟล์ Workflow ของ n8n อยู่ใน Repo นี้ทั้งหมด README มีขั้นตอนตั้งระบบของตัวเองตั้งแต่ต้น</p>
+  <div class="copyline"><div class="val">https://github.com/jatura-fakduai/fakduai-warehouse-simulator</div><button class="btn" data-copy="https://github.com/jatura-fakduai/fakduai-warehouse-simulator">คัดลอก</button><a class="btn primary" href="https://github.com/jatura-fakduai/fakduai-warehouse-simulator" target="_blank" rel="noopener">เปิด Repo ↗</a></div>
+  <div class="copyline"><div class="val">https://fakduai-warehouse-simulator.pages.dev/</div><button class="btn" data-copy="https://fakduai-warehouse-simulator.pages.dev/">คัดลอก</button><a class="btn" href="https://fakduai-warehouse-simulator.pages.dev/" target="_blank" rel="noopener">เปิดตัวที่ใช้ในห้อง ↗</a></div>
+
+  <h3>2 · Google Sheet Template</h3>
+  <ol class="do">
+    <li><div>เปิดลิงก์ด้านล่าง Google จะถามว่า <b>ทำสำเนา</b> กดยืนยัน จะได้ Sheet ของตัวเองใน Google Drive ที่มีแท็บ Inventory และ Transactions พร้อมข้อมูลตัวอย่าง
+      <div class="copyline"><div class="val">https://docs.google.com/spreadsheets/d/1Gp7Afd7GRtTkCFSqa7aeF0Z9wluC7mAft3H1-mh5MEI/copy</div><button class="btn" data-copy="https://docs.google.com/spreadsheets/d/1Gp7Afd7GRtTkCFSqa7aeF0Z9wluC7mAft3H1-mh5MEI/copy">คัดลอก</button><a class="btn primary" href="https://docs.google.com/spreadsheets/d/1Gp7Afd7GRtTkCFSqa7aeF0Z9wluC7mAft3H1-mh5MEI/copy" target="_blank" rel="noopener">ทำสำเนา Sheet ↗</a></div>
+    </div></li>
+    <li><div>Sheet ที่ทำสำเนาใช้กับ n8n ของตัวเองได้ทันที แต่ Simulator ตัวที่ใช้ในห้องเชื่อมได้เฉพาะ Sheet ของ Workshop ถ้าจะให้ Simulator อ่าน Sheet ของคุณ ต้อง Deploy Google Apps Script จาก Sheet ของคุณเอง แล้วชี้ Simulator ไปที่ Apps Script นั้น ทำตามหัวข้อ <b>ตั้งระบบของตัวเอง</b> ใน README ของ Repo</div></li>
+  </ol>
+  <div class="note warn"><b>เรื่องสิทธิ์</b> ใครมีลิงก์ก็แก้ Sheet ได้ ใช้สำหรับข้อมูลทดลองเท่านั้น อย่าใส่ข้อมูลจริงของบริษัท</div>
+
+  <h3>3 · n8n ฟรีของตัวเอง</h3>
+  <div class="grid">
+    <div><strong>n8n Cloud · ทดลองฟรี</strong>สมัครด้วยอีเมล ไม่ต้องใช้บัตรเครดิต ได้ URL แบบ HTTPS ใช้กับ LINE Webhook ได้ทันที หมดช่วงทดลองแล้วต้องเลือกแพ็กเกจ
+      <div class="copyline"><a class="btn primary" href="https://app.n8n.cloud/register" target="_blank" rel="noopener">สมัคร n8n Cloud ↗</a></div></div>
+    <div><strong>Self-host · ฟรีไม่จำกัดเวลา</strong>Community Edition ติดตั้งบนเครื่องหรือเซิร์ฟเวอร์ของตัวเองด้วย Docker ต้องมีโดเมน HTTPS (หรือ Cloudflare Tunnel) ถึงจะรับ Webhook จาก LINE ได้
+      <div class="copyline"><a class="btn" href="https://docs.n8n.io/hosting/" target="_blank" rel="noopener">คู่มือติดตั้ง ↗</a></div></div>
+  </div>
+  <div class="copyline"><div class="val">docker run -it --rm --name n8n -p 5678:5678 -e WEBHOOK_URL=https://n8n.yourdomain.com/ -v n8n_data:/home/node/.n8n docker.n8n.io/n8nio/n8n</div><button class="btn" data-copy="docker run -it --rm --name n8n -p 5678:5678 -e WEBHOOK_URL=https://n8n.yourdomain.com/ -v n8n_data:/home/node/.n8n docker.n8n.io/n8nio/n8n">คัดลอก</button></div>
+
+  <h3>4 · Workflow Starter Template</h3>
+  <ol class="do">
+    <li><div>สร้าง workflow ใหม่ใน n8n ของตัวเอง กดปุ่มด้านล่าง แล้วคลิกบน canvas กด <code>Ctrl</code> + <code>V</code>
+      <div class="copyline"><button class="btn primary" id="copyStarter">คัดลอก Workflow ของ Lab 2–4</button></div>
+    </div></li>
+    <li><div>ตั้งค่า 4 จุด
+      <div class="tbl"><table>
+        <thead><tr><th>Node</th><th>ตั้งค่า</th></tr></thead>
+        <tbody>
+          <tr><td>OpenAI Chat Model</td><td>เลือก OpenAI Credential และเปิด <b>Use Responses API</b></td></tr>
+          <tr><td>Inventory Lookup, Transaction Lookup, Create AGV Job</td><td>เชื่อม Google Sheets Credential และเปลี่ยน <b>Document</b> เป็น Sheet ที่ทำสำเนาไว้</td></tr>
+          <tr><td>Reply to LINE</td><td>Header Auth: <code>Authorization</code> / <code>Bearer &lt;Channel access token&gt;</code> ตามขั้น L1-04</td></tr>
+          <tr><td>LINE Webhook</td><td>ตั้ง path ของตัวเอง แล้วนำ Production URL ไปใส่ใน LINE Developers ตามขั้น L1-02</td></tr>
+        </tbody>
+      </table></div>
+    </div></li>
+    <li><div>กด <b>Publish</b> แล้วทดสอบ <code>เบิก A001 จำนวน 10 ชิ้น</code> → <code>ยืนยัน</code> ตาม Lab 4</div></li>
+  </ol>
+  <div class="note">Template นี้ลบ Credential ของทีมงานออกแล้ว ต้องใส่ของตัวเองทุกตัว</div>
+
+  <h3>ไอเดียต่อยอด</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>ไอเดีย</th><th>ผลลัพธ์</th><th>เริ่มจาก</th></tr></thead>
+    <tbody>
+      <tr><td>Low Stock</td><td>ตอบว่าสินค้าใดเหลือน้อยกว่าเกณฑ์</td><td>เพิ่มกฎใน System Message</td></tr>
+      <tr><td>Stock Summary</td><td>ให้ AI สรุปภาพรวมคลังทุกเช้า</td><td>Schedule Trigger + LINE Push</td></tr>
+      <tr><td>Location</td><td>ค้นหาตำแหน่งจากชื่อสินค้าแบบพิมพ์ไม่ครบ</td><td>ปรับ Tool Description</td></tr>
+      <tr><td>Expiry</td><td>เตือนสินค้าใกล้หมดอายุ</td><td>เพิ่มคอลัมน์ Expiry ใน Inventory</td></tr>
+      <tr><td>Use case ของตัวเอง</td><td>โจทย์ Logistics จากงานจริง</td><td>เริ่มจาก Template นี้</td></tr>
+    </tbody>
+  </table></div>
+</section>
+<script type="application/json" id="starterWf">{"name": "Fakduai Lab - AI Warehouse Assistant (Starter)", "nodes": [{"parameters": {"descriptionType": "manual", "toolDescription": "อ่านตาราง Inventory ทั้งหมดเพื่อค้นหาสินค้าจาก SKU, Name หรือ Location ตารางมีคอลัมน์ Location, SKU, Name, Category, Stock, Capacity และ Color ใช้เครื่องมือนี้ก่อนตอบคำถามเกี่ยวกับสินค้าและสต็อกทุกครั้ง", "documentId": {"__rl": true, "value": "1Gp7Afd7GRtTkCFSqa7aeF0Z9wluC7mAft3H1-mh5MEI", "mode": "list", "cachedResultName": "AI Warehouse Workshop — Que AGV", "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Gp7Afd7GRtTkCFSqa7aeF0Z9wluC7mAft3H1-mh5MEI/edit?usp=drivesdk"}, "sheetName": {"__rl": true, "value": "gid=0", "mode": "list", "cachedResultName": "Inventory", "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Gp7Afd7GRtTkCFSqa7aeF0Z9wluC7mAft3H1-mh5MEI/edit#gid=0"}, "options": {}}, "type": "n8n-nodes-base.googleSheetsTool", "typeVersion": 4.6, "position": [992, 640], "id": "3dab2925-71f0-466c-a076-ce6f6c867366", "name": "Inventory Lookup"}, {"parameters": {"content": "## ตั้งค่าก่อนใช้งาน\n1. OpenAI Chat Model: เลือก OpenAI Credential และเปิด Use Responses API\n2. Inventory Lookup, Transaction Lookup, Create AGV Job: เลือก Google Sheets Credential และเปลี่ยน Document เป็น Sheet ที่คุณทำสำเนาไว้\n3. Reply to LINE: Header Auth  Name = Authorization, Value = Bearer <Channel access token>\n4. LINE Webhook: ตั้ง path ของคุณเอง แล้วนำ Production URL ไปใส่ใน LINE Developers\n5. Publish แล้วทดสอบ: เบิก A001 จำนวน 10 ชิ้น → ยืนยัน", "height": 260, "width": 562, "color": 5}, "type": "n8n-nodes-base.stickyNote", "typeVersion": 1, "position": [0, 0], "id": "78d08b97-5ae8-4589-974b-329bde79b231", "name": "Setup Note"}, {"parameters": {"descriptionType": "manual", "toolDescription": "ใช้หลังผู้ใช้ยืนยันแล้วเท่านั้น เพิ่มงานหนึ่งแถวลงแท็บ Transactions โดยตรงด้วยสถานะ PENDING ห้ามใช้เครื่องมือนี้แก้ Inventory หรือ Stock", "operation": "append", "documentId": {"__rl": true, "value": "1Gp7Afd7GRtTkCFSqa7aeF0Z9wluC7mAft3H1-mh5MEI", "mode": "list", "cachedResultName": "AI Warehouse Workshop — Que AGV", "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Gp7Afd7GRtTkCFSqa7aeF0Z9wluC7mAft3H1-mh5MEI/edit?usp=drivesdk"}, "sheetName": {"__rl": true, "value": 1162890083, "mode": "list", "cachedResultName": "Transactions", "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Gp7Afd7GRtTkCFSqa7aeF0Z9wluC7mAft3H1-mh5MEI/edit#gid=1162890083"}, "columns": {"mappingMode": "defineBelow", "value": {"Operation ID": "={{ 'AGV-' + $execution.id + '-' + $now.toMillis() }}", "Timestamp": "={{ $now.toISO() }}", "Type": "={{ $fromAI('type', 'IN สำหรับรับเข้า หรือ OUT สำหรับเบิกและจ่ายออก', 'string') }}", "Location": "={{ $fromAI('location', 'Location ที่ตรวจพบใน Inventory เช่น B2-03', 'string') }}", "SKU": "={{ $fromAI('sku', 'รหัส SKU ที่ตรวจพบใน Inventory เช่น A001', 'string') }}", "Quantity": "={{ $fromAI('quantity', 'จำนวนเต็มบวกที่ผู้ใช้ยืนยัน', 'number') }}", "Balance": "0", "Status": "PENDING", "Message": "Waiting for AGV", "Source": "N8N_CHAT"}, "matchingColumns": [], "schema": [{"id": "Operation ID", "displayName": "Operation ID", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true}, {"id": "Timestamp", "displayName": "Timestamp", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true}, {"id": "Type", "displayName": "Type", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true}, {"id": "Location", "displayName": "Location", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true}, {"id": "SKU", "displayName": "SKU", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true}, {"id": "Quantity", "displayName": "Quantity", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true}, {"id": "Balance", "displayName": "Balance", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true}, {"id": "Status", "displayName": "Status", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true}, {"id": "Started At", "displayName": "Started At", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true}, {"id": "Completed At", "displayName": "Completed At", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true}, {"id": "Message", "displayName": "Message", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true}, {"id": "Source", "displayName": "Source", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true}, {"id": "Worker", "displayName": "Worker", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true}], "attemptToConvertTypes": false, "convertFieldsToString": false}, "options": {}}, "type": "n8n-nodes-base.googleSheetsTool", "typeVersion": 4.7, "position": [1104, 640], "id": "683b8045-a921-4d75-b1f3-d1cc7d732910", "name": "Create AGV Job"}, {"parameters": {"descriptionType": "manual", "toolDescription": "อ่านตาราง Transaction ทั้งหมดเพื่อค้นหาประวัติการเคลื่อนย้ายสินค้าจาก SKU, Type หรือ Location ตารางมีคอลัมน์ Type,Location,SKU,Quantity,Balance,Statusใช้เครื่องมือนี้ก่อนตอบคำถามเกี่ยวกับการเคลื่อนย้ายสินค้าทุกครั้ง", "documentId": {"__rl": true, "value": "1Gp7Afd7GRtTkCFSqa7aeF0Z9wluC7mAft3H1-mh5MEI", "mode": "list", "cachedResultName": "AI Warehouse Workshop — Que AGV", "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Gp7Afd7GRtTkCFSqa7aeF0Z9wluC7mAft3H1-mh5MEI/edit?usp=drivesdk"}, "sheetName": {"__rl": true, "value": 1162890083, "mode": "list", "cachedResultName": "Transactions", "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Gp7Afd7GRtTkCFSqa7aeF0Z9wluC7mAft3H1-mh5MEI/edit#gid=1162890083"}, "options": {}}, "type": "n8n-nodes-base.googleSheetsTool", "typeVersion": 4.6, "position": [832, 640], "id": "81746101-14fd-4a63-91f3-363977c28398", "name": "Transaction Lookup"}, {"parameters": {"httpMethod": "POST", "path": "line-webhook", "options": {}}, "id": "c706722e-2493-4e2f-9f89-2982e1e38f95", "name": "LINE Webhook", "type": "n8n-nodes-base.webhook", "typeVersion": 2, "position": [-144, 352], "webhookId": "line-webhook"}, {"parameters": {"method": "POST", "url": "https://api.line.me/v2/bot/message/reply", "authentication": "genericCredentialType", "genericAuthType": "httpHeaderAuth", "sendBody": true, "specifyBody": "json", "jsonBody": "={{ JSON.stringify({ replyToken: $('Filter Text Messages').item.json.replyToken, messages: [{ type: 'text', text: String($json.output).slice(0, 5000) }] }) }}", "options": {}}, "id": "532aab08-0f44-4e2e-9bfd-1746a9927903", "name": "Reply to LINE", "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [1136, 352]}, {"parameters": {"fieldToSplitOut": "body.events", "options": {}}, "id": "72c7cec2-8761-4e16-949a-91653463c128", "name": "Split Events", "type": "n8n-nodes-base.splitOut", "typeVersion": 1, "position": [64, 352]}, {"parameters": {"conditions": {"options": {"caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 1}, "conditions": [{"id": "c0000001-0000-4000-8000-000000000001", "leftValue": "={{ $json.type }}", "rightValue": "message", "operator": {"type": "string", "operation": "equals"}}, {"id": "c0000002-0000-4000-8000-000000000002", "leftValue": "={{ $json.message.type }}", "rightValue": "text", "operator": {"type": "string", "operation": "equals"}}], "combinator": "and"}, "options": {}}, "id": "3fc1afaf-99e7-457a-8132-ab9d16ec385e", "name": "Filter Text Messages", "type": "n8n-nodes-base.filter", "typeVersion": 2, "position": [288, 352]}, {"parameters": {"promptType": "define", "text": "={{ $json.message.text }}", "options": {"systemMessage": "คุณคือ AI Warehouse Assistant ของ Fakduai Lab ช่วยค้นหา Inventory และสร้างงานให้ AGV\n\nกฎการค้นหา:\n1. เมื่อถามถึง SKU ชื่อสินค้า Stock หรือ Location ให้ใช้ Inventory Lookup ก่อนตอบ ห้ามเดาข้อมูล\n2. ตอบภาษาไทยแบบกระชับ ระบุ SKU ชื่อสินค้า Stock และ Location\n\nกฎการสร้างงาน AGV:\n1. RECEIVE/รับเข้า ใช้ Type=IN ส่วน PICK/เบิก/จ่ายออก ใช้ Type=OUT\n2. ต้องทราบ SKU, Quantity และ Location หากข้อมูลไม่ครบให้ถามเพิ่ม\n3. ตรวจ Inventory ก่อนเสมอ เพื่อยืนยันสินค้า Location Stock และ Capacity\n4. ห้ามสร้างงาน OUT หาก Quantity มากกว่า Stock และห้ามสร้างงาน IN หากเกิน Capacity\n5. ก่อนสร้างงาน ให้สรุป Type, SKU, Quantity, Location และถามว่า “ยืนยันสร้างงาน AGV หรือไม่?”\n6. ห้ามเรียก Create AGV Job จนกว่าผู้ใช้จะตอบยืนยันอย่างชัดเจนในข้อความถัดมา\n7. หลังยืนยัน ให้เรียก Create AGV Job เพียงครั้งเดียว เครื่องมือนี้จะ Append แถวลง Transactions โดยตรง\n8. หลัง Tool สำเร็จ ให้แจ้งสถานะ PENDING พร้อมบอกให้เปิด Warehouse Simulator และ Auto Sync\n9. การสร้างงานยังไม่เปลี่ยน Stock; Stock จะเปลี่ยนเมื่อ AGV ทำงานเสร็จและสถานะเป็น COMPLETED\n10. ห้ามแก้ Inventory หรือ Stock โดยตรงจาก n8n\n\nตัวอย่าง:\nผู้ใช้: เบิก A001 10 ชิ้น\nคุณ: ตรวจพบ A001 ที่ B2-03 คงเหลือ 50 ชิ้น ต้องการ PICK 10 ชิ้น ยืนยันสร้างงาน AGV หรือไม่?\nผู้ใช้: ยืนยัน\nคุณ: เรียก Create AGV Job ด้วย Type=OUT, Location=B2-03, SKU=A001, Quantity=10"}}, "id": "aed4313a-0c85-4b9e-acff-0a15af17a2cf", "name": "AI Agent", "type": "@n8n/n8n-nodes-langchain.agent", "typeVersion": 1.7, "position": [688, 352]}, {"parameters": {"sessionIdType": "customKey", "sessionKey": "={{ $('Filter Text Messages').item.json.source.userId }}", "contextWindowLength": 8}, "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow", "typeVersion": 1.3, "position": [704, 592], "id": "b4ec5273-cd24-4872-83ab-f0755dd17e41", "name": "Conversation Memory"}, {"parameters": {"model": {"__rl": true, "value": "gpt-6-luna", "mode": "list", "cachedResultName": "gpt-6-luna"}, "options": {}}, "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi", "typeVersion": 1.3, "position": [560, 592], "id": "d0ca1edf-04fd-4d88-bcd0-22001d550564", "name": "OpenAI Chat Model"}], "connections": {"Inventory Lookup": {"ai_tool": [[{"node": "AI Agent", "type": "ai_tool", "index": 0}]]}, "Create AGV Job": {"ai_tool": [[{"node": "AI Agent", "type": "ai_tool", "index": 0}]]}, "Transaction Lookup": {"ai_tool": [[{"node": "AI Agent", "type": "ai_tool", "index": 0}]]}, "LINE Webhook": {"main": [[{"node": "Split Events", "type": "main", "index": 0}]]}, "Split Events": {"main": [[{"node": "Filter Text Messages", "type": "main", "index": 0}]]}, "Filter Text Messages": {"main": [[{"node": "AI Agent", "type": "main", "index": 0}]]}, "AI Agent": {"main": [[{"node": "Reply to LINE", "type": "main", "index": 0}]]}, "Conversation Memory": {"ai_memory": [[{"node": "AI Agent", "type": "ai_memory", "index": 0}]]}, "OpenAI Chat Model": {"ai_languageModel": [[{"node": "AI Agent", "type": "ai_languageModel", "index": 0}]]}}, "settings": {"executionOrder": "v1", "binaryMode": "separate"}}</script>
+</div>
+
+      <div id="stepFoot">
+        <label class="mark"><input type="checkbox" id="markDone"> ทำขั้นนี้เสร็จแล้ว</label>
+        <footer class="pager">
+          <button class="btn" id="prev">← ย้อนกลับ</button>
+          <button class="btn primary" id="next">ถัดไป →</button>
+        </footer>
+        <p class="kbd-hint">ใช้ปุ่ม <kbd>←</kbd> <kbd>→</kbd> บนคีย์บอร์ดเพื่อเปลี่ยนขั้นได้</p>
+      </div>
+    </main>
+  </div>
+</div>
+
+<div class="modal" id="resetModal" hidden>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="rmTitle">
+    <h3 id="rmTitle">เริ่มใหม่ทั้งหมด?</h3>
+    <p>ความคืบหน้าที่ติ๊กไว้ทุกโซนจะถูกล้าง แล้วกลับไปหน้าภาพรวม ธีมที่เลือกไว้ยังอยู่เหมือนเดิม</p>
+    <div class="row"><button type="button" class="btn" id="rmCancel">ยกเลิก</button><button type="button" class="btn danger" id="rmOk">ล้างและเริ่มใหม่</button></div>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" hidden></div>
+<footer class="sitefoot">
+  <div class="sitefoot-inner">
+    <span class="ws"><b>AI Logistics Chatbot Workshop</b> · Code Lab</span>
+    <div class="credits">
+      <span class="k">Presented by</span>
+      <a class="credit" href="https://fakduai.com" target="_blank" rel="noopener"><img class="fk" src="img/logo-fakduai.png" alt="Fakduai Lab" width="103" height="20"></a>
+      <span class="sep" aria-hidden="true"></span>
+      <span class="k">Sponsored by</span>
+      <a class="credit" href="https://line.me/th/" target="_blank" rel="noopener"><img class="line" src="img/logo-line.png" alt="LINE" width="40" height="40"></a>
+      <a class="credit" href="https://pinto-app.com" target="_blank" rel="noopener" aria-label="Pinto App"><img class="pinto" src="img/logo-pinto.png" alt="Pinto App" width="40" height="40"></a>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){
+  const tracks=[...document.querySelectorAll('.track')];
+  const trackNav=document.getElementById('tracks');
+  const rail=document.getElementById('rail');
+  const KEY='wh-codelab-done-v1',LAST='wh-codelab-last';
+  let done=new Set();
+  try{done=new Set(JSON.parse(localStorage.getItem(KEY)||'[]'))}catch(e){}
+  const save=()=>{try{localStorage.setItem(KEY,JSON.stringify([...done]))}catch(e){}};
+  let curTrack=0,curStep=0;
+
+  tracks.forEach((t,i)=>{
+    const b=document.createElement('button');
+    b.type='button';b.setAttribute('role','tab');
+    if(t.dataset.locked)b.classList.add('locked');
+    b.innerHTML='<span class="t-code"></span><span class="t-name"></span><span class="t-tag"></span><span class="t-done"></span><i class="t-prog"></i>';
+    b.querySelector('.t-code').textContent=t.dataset.code;
+    b.querySelector('.t-name').textContent=t.dataset.name;
+    b.querySelector('.t-tag').textContent=t.dataset.tag;
+    b.addEventListener('click',()=>go(i,0,true));
+    trackNav.appendChild(b);
+  });
+  const trackBtns=[...trackNav.children];
+  const stepsOf=t=>[...tracks[t].querySelectorAll('section.step')];
+
+  function buildRail(){
+    rail.innerHTML='';
+    document.getElementById('railZone').textContent='โซน '+tracks[curTrack].dataset.code+' · '+tracks[curTrack].dataset.name;
+    stepsOf(curTrack).forEach((s,i)=>{
+      const li=document.createElement('li');const b=document.createElement('button');b.type='button';
+      b.innerHTML='<span class="loc"></span><span class="lbl"></span>';
+      b.querySelector('.loc').textContent=s.dataset.code;
+      b.querySelector('.lbl').textContent=s.dataset.title;
+      b.title=s.dataset.title;
+      b.addEventListener('click',()=>go(curTrack,i,true));
+      li.appendChild(b);rail.appendChild(li);
+    });
+  }
+  function render(){
+    const t=tracks[curTrack],steps=stepsOf(curTrack),single=!!t.dataset.single;
+    tracks.forEach((x,i)=>x.hidden=i!==curTrack);
+    steps.forEach((s,i)=>s.hidden=i!==curStep);
+    trackBtns.forEach((b,i)=>b.setAttribute('aria-selected',i===curTrack?'true':'false'));
+    document.getElementById('layout').classList.toggle('single',single);
+    document.getElementById('stepFoot').hidden=single;
+    const rb=[...rail.querySelectorAll('button')];
+    rb.forEach((b,i)=>{
+      if(i===curStep)b.setAttribute('aria-current','step');else b.removeAttribute('aria-current');
+      b.classList.toggle('done',done.has(steps[i].id));
+    });
+    const tDone=steps.filter(s=>done.has(s.id)).length;
+    updateProgress();
+    document.getElementById('zoneName').textContent=t.dataset.name;
+    document.getElementById('pos').textContent=single?'–':steps[curStep].dataset.code+' ('+(curStep+1)+'/'+steps.length+')';
+    document.getElementById('doneCount').textContent=single?'–':tDone+'/'+steps.length;
+    document.getElementById('barFill').style.width=single?'0%':(tDone/steps.length*100)+'%';
+    document.getElementById('markDone').checked=done.has(steps[curStep].id);
+    const prev=document.getElementById('prev');prev.style.visibility=curStep===0?'hidden':'visible';
+    const nt=tracks[curTrack+1];
+    document.getElementById('next').textContent=curStep<steps.length-1?'ถัดไป →':(nt?'เสร็จโซนนี้ · ไป '+nt.dataset.name+' →':'เสร็จแล้ว ✓');
+    if(rb[curStep])rb[curStep].scrollIntoView({block:'nearest',inline:'nearest'});
+  }
+  function go(t,s,scroll){
+    const changed=t!==curTrack;
+    curTrack=Math.max(0,Math.min(tracks.length-1,t));
+    curStep=Math.max(0,Math.min(stepsOf(curTrack).length-1,s));
+    if(changed||!rail.children.length)buildRail();
+    try{history.replaceState(null,'','#'+stepsOf(curTrack)[curStep].id)}catch(e){}
+    try{localStorage.setItem(LAST,stepsOf(curTrack)[curStep].id)}catch(e){}
+    render();
+    if(scroll)document.getElementById('main').scrollIntoView({behavior:'smooth',block:'start'});
+  }
+  document.getElementById('prev').addEventListener('click',()=>go(curTrack,curStep-1,true));
+  document.getElementById('next').addEventListener('click',()=>{
+    const wasDone=zoneComplete(curTrack);
+    done.add(stepsOf(curTrack)[curStep].id);save();
+    if(!wasDone&&zoneComplete(curTrack)&&!tracks[curTrack].dataset.single)celebrate(tracks[curTrack].dataset.name);
+    if(curStep<stepsOf(curTrack).length-1)go(curTrack,curStep+1,true);
+    else if(curTrack<tracks.length-1)go(curTrack+1,0,true);
+    else render();
+  });
+  document.getElementById('markDone').addEventListener('change',e=>{
+    const id=stepsOf(curTrack)[curStep].id;e.target.checked?done.add(id):done.delete(id);save();render();
+  });
+  document.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click',()=>{
+    const i=tracks.findIndex(t=>t.dataset.track===b.dataset.go);if(i>=0)go(i,0,true);
+  }));
+
+
+  // ---- progress, resume, celebrate ----
+  function zoneComplete(ti){const s=stepsOf(ti);return !tracks[ti].dataset.single&&s.length>0&&s.every(x=>done.has(x.id))}
+  function pct(ti){const s=stepsOf(ti);return s.length?Math.round(s.filter(x=>done.has(x.id)).length/s.length*100):0}
+  const zc=document.getElementById('zoneCards');
+  function updateProgress(){
+    trackBtns.forEach((b,i)=>{
+      const single=!!tracks[i].dataset.single;
+      b.querySelector('.t-prog').style.width=single?'0':pct(i)+'%';
+      b.querySelector('.t-done').textContent=zoneComplete(i)?'✓':'';
+    });
+    if(zc){
+      zc.innerHTML='';
+      tracks.forEach((tr,i)=>{
+        if(tr.dataset.single)return;
+        const p=pct(i),c=document.createElement('button');c.type='button';c.className='zone';
+        c.innerHTML='<div class="ring"><span></span></div><div><div class="z-code"></div><div class="z-name"></div><div class="z-tag"></div></div>';
+        c.querySelector('.ring').style.setProperty('--p',p);
+        c.querySelector('.ring span').textContent=p+'%';
+        c.querySelector('.z-code').textContent='โซน '+tr.dataset.code+(p===100?' · เสร็จแล้ว':p>0?' · กำลังเรียน':'');
+        c.querySelector('.z-name').textContent=tr.dataset.name;
+        c.querySelector('.z-tag').textContent=tr.dataset.tag;
+        c.addEventListener('click',()=>{const s=stepsOf(i);const k=s.findIndex(x=>!done.has(x.id));go(i,k<0?0:k,true)});
+        zc.appendChild(c);
+      });
+    }
+    const hint=document.getElementById('resumeHint'),hs=document.getElementById('heroStart');
+    if(hint&&hs){
+      let last=null;try{last=localStorage.getItem(LAST)}catch(e){}
+      const el=last&&document.getElementById(last);
+      if(el&&!last.startsWith('overview')&&done.size){hs.textContent='เรียนต่อ →';hint.textContent='ค้างไว้ที่ '+el.dataset.code+' '+el.dataset.title}
+      else{hs.textContent='เริ่มเรียน →';hint.textContent='เริ่มจากโซน P เตรียม LINE OA ใช้เวลาประมาณ 10 นาที'}
+    }
+  }
+  const toastEl=document.getElementById('toast');let toastT;
+  function toast(msg){toastEl.textContent=msg;toastEl.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>toastEl.hidden=true,3200)}
+  function celebrate(name){
+    toast('เยี่ยมมาก! จบโซน '+name+' แล้ว');
+    if(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+    const box=document.createElement('div');box.className='confetti';
+    const cols=['#2453C8','#22A863','#FFB000','#E1641F','#06C755'];
+    for(let i=0;i<60;i++){const s=document.createElement('i');s.style.left=Math.random()*100+'vw';s.style.background=cols[i%cols.length];s.style.animationDelay=(Math.random()*.5)+'s';s.style.transform='rotate('+Math.random()*180+'deg)';box.appendChild(s)}
+    document.body.appendChild(box);setTimeout(()=>box.remove(),2400);
+  }
+  const hs=document.getElementById('heroStart');
+  if(hs)hs.addEventListener('click',()=>{
+    let last=null;try{last=localStorage.getItem(LAST)}catch(e){}
+    if(last&&!last.startsWith('overview')&&done.size){tracks.forEach((tr,ti)=>stepsOf(ti).forEach((s,si)=>{if(s.id===last)go(ti,si,true)}));return}
+    const i=tracks.findIndex(x=>x.dataset.track==='prep');go(i,0,true);
+  });
+
+  // ---- keyboard ----
+  document.addEventListener('keydown',e=>{
+    if(e.altKey||e.ctrlKey||e.metaKey)return;
+    const tag=(e.target.tagName||'').toLowerCase();
+    if(['input','textarea','select'].includes(tag)||e.target.isContentEditable)return;
+    if(!document.getElementById('resetModal').hidden)return;
+    if(tracks[curTrack].dataset.single)return;
+    if(e.key==='ArrowRight'){e.preventDefault();document.getElementById('next').click()}
+    if(e.key==='ArrowLeft'&&curStep>0){e.preventDefault();go(curTrack,curStep-1,true)}
+  });
+
+  // ---- theme ----
+  const root=document.documentElement;
+  function applyTheme(mode,accent){
+    if(mode==='light'||mode==='dark')root.setAttribute('data-theme',mode);else root.removeAttribute('data-theme');
+    if(accent&&accent!=='blue')root.setAttribute('data-accent',accent);else root.removeAttribute('data-accent');
+    document.querySelectorAll('.seg button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.mode===(mode||'auto')?'true':'false'));
+    document.querySelectorAll('.sw').forEach(b=>b.setAttribute('aria-pressed',b.dataset.accent===(accent||'blue')?'true':'false'));
+  }
+  let mode='auto',accent='blue';
+  try{mode=localStorage.getItem('wh-theme')||'auto';accent=localStorage.getItem('wh-accent')||'blue'}catch(e){}
+  applyTheme(mode,accent);
+  document.querySelectorAll('.seg button').forEach(b=>b.addEventListener('click',()=>{mode=b.dataset.mode;try{localStorage.setItem('wh-theme',mode)}catch(e){}applyTheme(mode,accent)}));
+  document.querySelectorAll('.sw').forEach(b=>b.addEventListener('click',()=>{accent=b.dataset.accent;try{localStorage.setItem('wh-accent',accent)}catch(e){}applyTheme(mode,accent)}));
+
+  // ---- reset ----
+  const rm=document.getElementById('resetModal');
+  document.getElementById('resetBtn').addEventListener('click',()=>{rm.hidden=false;document.getElementById('rmCancel').focus()});
+  document.getElementById('rmCancel').addEventListener('click',()=>{rm.hidden=true});
+  rm.addEventListener('click',e=>{if(e.target===rm)rm.hidden=true});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!rm.hidden)rm.hidden=true});
+  document.getElementById('rmOk').addEventListener('click',()=>{
+    done.clear();save();try{localStorage.removeItem(LAST)}catch(e){}
+    rm.hidden=true;go(0,0,true);toast('ล้างความคืบหน้าแล้ว เริ่มใหม่ได้เลย');
+  });
+
+  // deep link
+  let start=[0,0];
+  const h=(location.hash||'').slice(1);
+  if(h){tracks.forEach((t,ti)=>stepsOf(ti).forEach((s,si)=>{if(s.id===h)start=[ti,si]}))}
+  buildRail();go(start[0],start[1],false);
+
+  // copy
+  function copyText(text,btn,label){
+    const orig=label||btn.textContent;
+    const ok=()=>{btn.textContent='คัดลอกแล้ว ✓';btn.classList.add('copied');setTimeout(()=>{btn.textContent=orig;btn.classList.remove('copied')},1600)};
+    const fallback=()=>{
+      const ta=document.createElement('textarea');ta.value=text;ta.style.position='fixed';ta.style.opacity='0';
+      document.body.appendChild(ta);ta.select();let s=false;try{s=document.execCommand('copy')}catch(e){}
+      ta.remove();if(s)ok();else btn.textContent='กด Ctrl+C เพื่อคัดลอก';
+    };
+    try{if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(text).then(ok,fallback);else fallback()}catch(e){fallback()}
+  }
+  document.querySelectorAll('[data-copy]').forEach(b=>b.addEventListener('click',()=>copyText(b.dataset.copy,b)));
+  document.querySelectorAll('[data-copy-from]').forEach(b=>b.addEventListener('click',()=>{const el=document.getElementById(b.dataset.copyFrom);if(el)copyText(el.textContent,b)}));
+  const cs=document.getElementById('copySys');if(cs)cs.addEventListener('click',e=>copyText(document.getElementById('sysmsgFull').textContent,e.currentTarget));
+  const whPath=document.getElementById('whPath'),whFull=document.getElementById('whFull');
+  const whUrl=()=>'https://n8n.fakduai.com/webhook/'+(whPath.value.trim().replace(/^\/+/,'')||'line-webhook');
+  whPath.addEventListener('input',()=>{whFull.textContent=whUrl()});
+  document.getElementById('copyWh').addEventListener('click',e=>copyText(whUrl(),e.currentTarget));
+
+  const cst=document.getElementById('copyStarter');
+  if(cst)cst.addEventListener('click',e=>copyText(JSON.stringify(JSON.parse(document.getElementById('starterWf').textContent),null,2),e.currentTarget));
+  const tk=document.getElementById('copyBearer');
+  if(tk)tk.addEventListener('click',e=>{
+    const v=document.getElementById('tokenIn').value.trim().replace(/^Bearer\s+/i,'');
+    if(!v){e.currentTarget.textContent='วาง token ก่อน';setTimeout(()=>e.currentTarget.textContent='คัดลอกเป็น Bearer …',1600);return}
+    copyText('Bearer '+v,e.currentTarget,'คัดลอกเป็น Bearer …');
+  });
+})();
+</script>
+
+</body>
+</html>
