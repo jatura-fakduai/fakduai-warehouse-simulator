@@ -97,7 +97,7 @@ h3{font-weight:600;font-size:18px;margin:28px 0 8px}
 .step ol.do>li>div{min-width:0}
 
 code{font-family:var(--font-mono);font-size:.88em;background:var(--code-bg);padding:1px 6px;border-radius:4px}
-.step p code,.step li code,.note code{overflow-wrap:anywhere}
+.step p code,.step li code,.note code,.tbl td code{overflow-wrap:anywhere}
 .copyline{display:flex;flex-wrap:wrap;align-items:stretch;gap:8px;margin:10px 0}
 .copyline .val{flex:1 1 260px;min-width:0;font-family:var(--font-mono);font-size:13.5px;background:var(--code-bg);border:1px solid var(--rule);border-radius:8px;padding:9px 12px;overflow-x:auto;white-space:nowrap;color:var(--ink)}
 .btn{all:unset;box-sizing:border-box;cursor:pointer;display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:9px;font-size:14px;font-weight:500;border:1px solid var(--rule);background:var(--surface);color:var(--ink);white-space:nowrap}
@@ -291,6 +291,26 @@ footer.pager .btn{padding:10px 18px}
 }
 @media (prefers-reduced-motion:reduce){.bar>i{transition:none}}
 
+
+/* sheet id url anatomy */
+figure.urlbar{margin:14px 0 8px;max-width:780px;border:1px solid var(--rule);border-radius:12px;overflow:hidden;background:var(--surface)}
+.ub-chrome{display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--code-bg);border-bottom:1px solid var(--rule)}
+.ub-dots{display:flex;gap:6px;flex:none}.ub-dots i{width:10px;height:10px;border-radius:50%;background:var(--rule)}
+.ub-field{flex:1;min-width:0;display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--rule);border-radius:999px;padding:7px 14px}
+.ub-lock{font-size:12px;flex:none}
+.ub-url{font-family:var(--font-mono);font-size:13.5px;line-height:1.6;overflow-wrap:anywhere;min-width:0}
+.ub-a{color:var(--muted)}
+.ub-id{background:#FFF1CC;color:#7A4B00;font-weight:600;border-radius:4px;padding:1px 3px;box-shadow:0 0 0 2px var(--ring)}
+.ub-legend{display:flex;flex-wrap:wrap;gap:6px 18px;padding:10px 14px;font-size:13px;color:var(--muted)}
+.ub-legend .k{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin-right:6px;background:var(--code-bg);border:1px solid var(--rule)}
+.ub-legend .k.id{background:#FFF1CC;border-color:var(--ring)}
+figure.urlbar figcaption{padding:8px 14px 10px;font-size:13px;color:var(--muted);border-top:1px dashed var(--rule)}
+.ub-preview{font-family:var(--font-mono);font-size:13px;line-height:1.7;background:var(--code-bg);border:1px solid var(--rule);border-radius:8px;padding:8px 12px;margin:0 0 10px;overflow-wrap:anywhere;max-width:780px}
+ol.mini{margin:6px 0 0;padding-left:20px;font-size:14px}
+ol.mini li{margin:3px 0}
+kbd{font-family:var(--font-mono);font-size:12px;padding:0 5px;border:1px solid var(--rule);border-bottom-width:2px;border-radius:4px;background:var(--surface)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .ub-id,:root:not([data-theme="light"]) .ub-legend .k.id{background:#4A3A10;color:#FFD98A}}
+:root[data-theme="dark"] .ub-id,:root[data-theme="dark"] .ub-legend .k.id{background:#4A3A10;color:#FFD98A}
 /* ===== mobile ===== */
 .lightbox{position:fixed;inset:0;z-index:70;background:#070B16;display:flex;flex-direction:column}
 .lightbox .lb-bar{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:calc(10px + env(safe-area-inset-top,0px)) 14px 10px;color:#fff;font-size:13.5px}
@@ -349,6 +369,9 @@ footer.pager .btn{padding:10px 18px}
   .tbl td:first-child{font-weight:600;color:var(--ink)}
   .tbl td[data-label]:not(:first-child)::before{content:attr(data-label);display:block;font-family:var(--font-mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-top:4px}
   .kbd-hint{display:none}
+  .ub-dots{display:none}
+  .ub-field{border-radius:12px;padding:7px 10px}
+  .ub-url{font-size:12.5px}
   .mark{margin-top:18px}
   #stepFoot footer.pager{position:fixed;left:0;right:0;bottom:0;z-index:20;margin:0;padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-top:1px solid var(--rule)}
   #stepFoot footer.pager .btn{flex:1;justify-content:center;min-height:46px}
@@ -963,16 +986,49 @@ footer.pager .btn{padding:10px 18px}
       <figure class="shot"><a href="img/s3-share.jpg" target="_blank" rel="noopener"><img src="img/s3-share.jpg" alt="หน้าต่างแชร์ของ Google Sheet ปุ่มคัดลอกลิงก์" loading="lazy"></a><figcaption>อีเมลเจ้าของไฟล์ในภาพถูกเบลอไว้</figcaption></figure>
     </div></li>
   </ol>
-  <h3>2 · แยก Sheet ID จากลิงก์</h3>
-  <p>Sheet ID คือข้อความยาวระหว่าง <code>/d/</code> กับ <code>/edit</code> ในลิงก์ เช่น <code>https://docs.google.com/spreadsheets/d/<b>1Gp7Afd7…mh5MEI</b>/edit</code> วางลิงก์ในช่องด้านล่างเพื่อแยก ID ให้อัตโนมัติ</p>
+  <h3>2 · Sheet ID อยู่ตรงไหน</h3>
+  <p><b>Sheet ID</b> คือรหัสประจำไฟล์ Google Sheet ที่ซ่อนอยู่ในลิงก์ของไฟล์ ทุกไฟล์มี ID ไม่ซ้ำกัน n8n ใช้ ID นี้รู้ว่าต้องอ่านและเขียนไฟล์ไหน</p>
+  <figure class="urlbar" aria-label="ตัวอย่างลิงก์ Google Sheet และตำแหน่ง Sheet ID">
+    <div class="ub-chrome"><span class="ub-dots"><i></i><i></i><i></i></span><div class="ub-field"><span class="ub-lock" aria-hidden="true">🔒</span><span class="ub-url"><span class="ub-a">docs.google.com/spreadsheets/d/</span><span class="ub-id">1Gp7Afd7GRtTkCFSqa7aeF0Z9wluC7mAft3H1-mh5MEI</span><span class="ub-a">/edit#gid=0</span></span></div></div>
+    <div class="ub-legend"><span><i class="k a"></i>ส่วนหน้า เหมือนกันทุกไฟล์</span><span><i class="k id"></i><b>Sheet ID</b> ส่วนที่ต้องใช้ (ประมาณ 44 ตัวอักษร)</span><span><i class="k a"></i>ส่วนท้าย ไม่ต้องใช้</span></div>
+    <figcaption>ตัด Sheet ID จากหลัง <code>/d/</code> จนถึงก่อน <code>/edit</code> ไม่รวมเครื่องหมาย <code>/</code> ทั้งสองข้าง</figcaption>
+  </figure>
+  <h3>หา Sheet ID ได้ 2 ทาง</h3>
+  <div class="grid">
+    <div><strong>ทาง A · ดูจากแถบที่อยู่บนคอม</strong>
+      <ol class="mini">
+        <li>เปิด Google Sheet ของกลุ่มใน Chrome หรือ Browser บนคอม</li>
+        <li>คลิกที่แถบที่อยู่ (Address bar) ด้านบนสุด ลิงก์เต็มจะขึ้นมา</li>
+        <li>มองหา <code>/d/</code> ข้อความยาวที่ตามมาจนถึง <code>/edit</code> คือ Sheet ID</li>
+        <li>กด <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>C</kbd> คัดลอกทั้งลิงก์ แล้ววางในช่องด้านล่าง ให้หน้านี้ตัด ID ให้ จะได้ไม่ต้องเลือกเอง</li>
+      </ol></div>
+    <div><strong>ทาง B · ใช้ปุ่มแชร์</strong>
+      <ol class="mini">
+        <li>กด <b>แชร์</b> มุมขวาบนของ Sheet แล้วกด <b>คัดลอกลิงก์</b> ตามข้อ 1 ด้านบน</li>
+        <li>ลิงก์ที่ได้จะลงท้ายด้วย <code>/edit?usp=sharing</code> ก็ใช้ได้เหมือนกัน</li>
+        <li>บนมือถือหรือแท็บเล็ตที่ไม่เห็นแถบที่อยู่ ให้ใช้ทางนี้</li>
+      </ol></div>
+  </div>
+  <h3>แยก Sheet ID อัตโนมัติ</h3>
+  <p>วางลิงก์ทั้งบรรทัดลงในช่อง ระบบจะไฮไลต์ส่วนที่เป็น Sheet ID ให้ดู แล้วกดคัดลอกไปวางใน n8n</p>
   <div class="copyline"><input class="val" id="sheetUrlIn" placeholder="วางลิงก์ Google Sheet ของกลุ่มที่นี่" aria-label="ลิงก์ Google Sheet" style="font:inherit;font-family:var(--font-mono);font-size:13.5px;color:var(--ink)"></div>
+  <div class="ub-preview" id="sheetUrlPreview" hidden></div>
   <div class="copyline"><div class="val" id="sheetIdOut" style="color:var(--muted)">Sheet ID จะขึ้นที่นี่</div><button class="btn" id="copySheetId" disabled>คัดลอก Sheet ID</button></div>
+  <div class="tbl"><table>
+    <thead><tr><th>ค่าที่วางใน sheetId</th><th>ใช้ได้ไหม</th><th>เหตุผล</th></tr></thead>
+    <tbody>
+      <tr><td><code>1Gp7Afd7GRtTkCFSqa7aeF0Z9wluC7mAft3H1-mh5MEI</code></td><td>✅ ใช้ได้</td><td>มีเฉพาะ ID</td></tr>
+      <tr><td><code>https://docs.google.com/spreadsheets/d/1Gp7…/edit</code></td><td>❌ ใช้ไม่ได้</td><td>วางทั้งลิงก์ ต้องตัดเหลือแค่ ID</td></tr>
+      <tr><td><code>1Gp7…mh5MEI/edit?usp=sharing</code></td><td>❌ ใช้ไม่ได้</td><td>ติดส่วนท้ายมาด้วย</td></tr>
+      <tr><td><code>AI Warehouse Workshop — Que AGV</code></td><td>❌ ใช้ไม่ได้</td><td>ชื่อไฟล์ไม่ใช่ ID ชื่อซ้ำกันได้ แต่ ID ไม่ซ้ำ</td></tr>
+    </tbody>
+  </table></div>
   <h3>3 · ใส่ใน Workshop Settings</h3>
   <ol class="do">
     <li><div>ใน workflow <b>2_Fakduai Lab - AI Warehouse Assistant</b> ดับเบิลคลิก node <b>Workshop Settings</b> (node ที่ 2 ต่อจาก LINE Webhook)
       <figure class="shot"><a href="img/w3-workshop-settings-node.jpg" target="_blank" rel="noopener"><img src="img/w3-workshop-settings-node.jpg" alt="node Workshop Settings อยู่ระหว่าง LINE Webhook กับ Split Events" loading="lazy"></a></figure>
     </div></li>
-    <li><div>ที่ฟิลด์ <code>sheetId</code> ลบค่าเดิมในช่องล่างสุด แล้ววาง Sheet ID ของกลุ่ม ชนิดเป็น <b>String</b> เหมือนเดิม และสวิตช์ <b>Include Other Input Fields</b> ต้องเปิดไว้ ถ้าปิด ข้อมูลจาก LINE จะไม่ถูกส่งต่อไปที่ Split Events
+    <li><div>ที่ฟิลด์ <code>sheetId</code> ลบค่าเดิมในช่องล่างสุด แล้ววาง Sheet ID ของกลุ่มที่คัดลอกจากข้อ 2 (วางเฉพาะ ID ไม่ใช่ลิงก์เต็ม) ชนิดเป็น <b>String</b> เหมือนเดิม และสวิตช์ <b>Include Other Input Fields</b> ต้องเปิดไว้ ถ้าปิด ข้อมูลจาก LINE จะไม่ถูกส่งต่อไปที่ Split Events
       <figure class="shot"><a href="img/w3-workshop-settings-panel.jpg" target="_blank" rel="noopener"><img src="img/w3-workshop-settings-panel.jpg" alt="หน้าต่าง node Workshop Settings ฟิลด์ sheetId และสวิตช์ Include Other Input Fields" loading="lazy"></a><figcaption>กรอบส้ม: ฟิลด์ sheetId (ค่าในภาพคือ Sheet Template) และสวิตช์ Include Other Input Fields ที่ต้องเปิด</figcaption></figure>
     </div></li>
     <li><div>ปิดหน้าต่าง node แล้วกด <b>Save</b> (ถ้า workflow Publish อยู่ ให้กด <b>Publish</b> อีกครั้งเพื่อใช้ค่าใหม่)</div></li>
@@ -1510,10 +1566,13 @@ footer.pager .btn{padding:10px 18px}
   if(cst)cst.addEventListener('click',e=>copyText(JSON.stringify(JSON.parse(document.getElementById('starterWf').textContent),null,2),e.currentTarget));
 
   // ---- sheet id extractor ----
-  const su=document.getElementById('sheetUrlIn'),so=document.getElementById('sheetIdOut'),sb=document.getElementById('copySheetId');
+  const su=document.getElementById('sheetUrlIn'),so=document.getElementById('sheetIdOut'),sb=document.getElementById('copySheetId'),sp=document.getElementById('sheetUrlPreview');
   if(su&&so&&sb){
-    const upd=()=>{const v=su.value.trim();const m=v.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]{20,})/)||v.match(/^([a-zA-Z0-9_-]{25,})$/);
-      if(m){so.textContent=m[1];so.style.color='var(--ink)';sb.disabled=false}else{so.textContent=v?'ไม่พบ Sheet ID ในลิงก์นี้ ตรวจว่าเป็นลิงก์ docs.google.com/spreadsheets/d/…':'Sheet ID จะขึ้นที่นี่';so.style.color='var(--muted)';sb.disabled=true}};
+    const upd=()=>{const v=su.value.trim();const m=v.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]{20,})/);const bare=!m&&v.match(/^([a-zA-Z0-9_-]{25,})$/);
+      const id=m?m[1]:bare?bare[1]:null;
+      if(sp){sp.replaceChildren();if(m){const i=v.indexOf(m[1]);const a=document.createElement('span');a.className='ub-a';a.textContent=v.slice(0,i);
+        const b=document.createElement('span');b.className='ub-id';b.textContent=m[1];const c=document.createElement('span');c.className='ub-a';c.textContent=v.slice(i+m[1].length);sp.append(a,b,c);sp.hidden=false}else sp.hidden=true}
+      if(id){so.textContent=id;so.style.color='var(--ink)';sb.disabled=false}else{so.textContent=v?'ไม่พบ Sheet ID ในลิงก์นี้ ตรวจว่าเป็นลิงก์ docs.google.com/spreadsheets/d/…':'Sheet ID จะขึ้นที่นี่';so.style.color='var(--muted)';sb.disabled=true}};
     su.addEventListener('input',upd);sb.addEventListener('click',e=>{if(!sb.disabled)copyText(so.textContent,e.currentTarget)});
   }
   const tk=document.getElementById('copyBearer');
