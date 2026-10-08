@@ -43,8 +43,18 @@ Stock **ไม่เปลี่ยน** ตอนสร้างงาน จ�
 3. วางลิงก์ Google Sheet ของกลุ่มที่ทีมงานแจก แล้วกด **เชื่อมต่อ Google Sheet**
 4. ต้องขึ้นว่า `เชื่อมต่อสำเร็จ · โหลด 9 ตำแหน่งจาก Inventory` และ **Auto Sync** เป็น `ON`
 
-> ตัวที่ Deploy ไว้เชื่อมได้เฉพาะ Sheet ที่เป็นของบัญชี Google ที่ Deploy Apps Script เท่านั้น
-> ถ้าคุณทำสำเนา Sheet เองแล้วเชื่อมไม่ได้ ให้ตั้งระบบของตัวเองตามหัวข้อถัดไป
+> Apps Script รองรับ Sheet ของบัญชีที่ Deploy และเจ้าของที่อยู่ใน `CONFIG.ALLOWED_OWNER_EMAILS`
+> โค้ดชุดนี้เพิ่ม `louiszzico@gmail.com` แล้ว ต้องอัปเดต Apps Script และ Deploy เวอร์ชันใหม่ก่อนจึงจะมีผลกับเว็บที่ใช้งานอยู่
+> Sheet ของบัญชีอื่นที่อนุญาตต้องแชร์สิทธิ์ **Editor** ให้บัญชีที่ Deploy Apps Script ด้วย
+
+### เพิ่มเจ้าของ Sheet ที่ใช้งานระบบกลางได้
+
+1. ใน `google-apps-script/Code.gs` เพิ่มอีเมลเจ้าของ Sheet ใน `CONFIG.ALLOWED_OWNER_EMAILS` (เพิ่มได้หลายอีเมล)
+2. ให้เจ้าของ Sheet แชร์ไฟล์เป็น **Editor** ให้บัญชีที่ Deploy ระบบกลาง
+3. วางโค้ดที่อัปเดตใน Apps Script แล้วเลือก **Deploy → Manage deployments → แก้ไข → New version → Deploy** ใช้ URL เดิมได้
+4. เปิด Simulator แล้วเชื่อมลิงก์ Sheet ผ่าน **Workshop Data**
+
+บัญชีที่ Deploy ยังใช้ Sheet ของตัวเองได้โดยไม่ต้องเพิ่มอีเมลในรายการ การตรวจนี้อ้างอิงเจ้าของไฟล์ใน Google Drive ไม่ใช่อีเมลของผู้เปิดหน้า Simulator
 
 ## ตั้งระบบของตัวเอง
 
@@ -128,7 +138,7 @@ Push ขึ้น branch `main` จะ Deploy โฟลเดอร์ `public/`
 
 | อาการ | สาเหตุ | วิธีแก้ |
 |---|---|---|
-| `ซิงก์ไม่สำเร็จ` | ลิงก์ Sheet ผิด หรือ Sheet ไม่ได้เป็นของบัญชีที่ Deploy Apps Script | ตรวจลิงก์ หรือ Deploy Apps Script จากบัญชีเจ้าของ Sheet |
+| `ซิงก์ไม่สำเร็จ` | ลิงก์ Sheet ผิด เจ้าของยังไม่ได้รับอนุญาต หรือบัญชีที่ Deploy ไม่มีสิทธิ์เข้าถึง | ตรวจลิงก์ เพิ่มอีเมลเจ้าของใน `ALLOWED_OWNER_EMAILS` แชร์ Sheet ให้บัญชีที่ Deploy เป็น Editor และ Deploy เวอร์ชันใหม่ |
 | `Connection Key ไม่ถูกต้อง` | `key` ใน `app.js` ไม่ตรงกับ `API_KEY` ใน `Code.gs` | ตั้งให้ตรงกัน แล้ว Deploy Apps Script เวอร์ชันใหม่ |
 | งานค้างที่ `PENDING` | Auto Sync ปิดอยู่ หรือไม่มีหน้า Simulator เปิดไว้ | เปิด Simulator และ Auto Sync |
 | Google Sheets Tool ขึ้น `Requested entity was not found` | `sheetId` ใน Workshop Settings ผิด หรือ Credential เปิดไฟล์นั้นไม่ได้ | คัดลอก Sheet ID ใหม่จากลิงก์ และใช้บัญชี Google ที่เข้าถึงไฟล์ได้ |

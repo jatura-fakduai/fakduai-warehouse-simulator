@@ -1,10 +1,13 @@
 /**
  * Fakduai Lab — Central Google Sheets adapter
  * Deploy this script once from the Master Sheet.
- * It can read/write the Master and copies owned by the same Google account.
+ * It can read/write Sheets owned by the deployer or explicitly allowed owners.
+ * Other owners must share their Sheets with the deployer as an Editor.
  */
 const CONFIG = Object.freeze({
   API_KEY: "693d5190eac0e1e3e18cb2ec7e88b36047ae",
+  // Add Google Sheet owner emails here. The deployer's own Sheets stay allowed.
+  ALLOWED_OWNER_EMAILS: Object.freeze(["louiszzico@gmail.com"]),
   INVENTORY_SHEET: "Inventory",
   TRANSACTIONS_SHEET: "Transactions",
   TRANSACTION_HEADERS: [
@@ -331,9 +334,14 @@ function openAuthorizedSpreadsheet_(sheetId) {
   if (!/^[a-zA-Z0-9-_]{20,}$/.test(id)) throw new Error("Google Sheet ID ไม่ถูกต้อง");
   const file = DriveApp.getFileById(id);
   const owner = file.getOwner();
-  const effectiveUser = Session.getEffectiveUser().getEmail();
-  if (owner && effectiveUser && owner.getEmail() !== effectiveUser) {
-    throw new Error("Sheet นี้ไม่ได้เป็นของบัญชีที่ Deploy ระบบกลาง");
+  const ownerEmail = owner ? String(owner.getEmail() || "").trim().toLowerCase() : "";
+  const effectiveEmail = String(Session.getEffectiveUser().getEmail() || "").trim().toLowerCase();
+  if (!ownerEmail || !effectiveEmail) {
+    throw new Error("ตรวจสอบเจ้าของ Sheet ไม่ได้ ใช้ Sheet ใน My Drive และ Deploy แบบ Execute as Me");
+  }
+  const allowedOwners = CONFIG.ALLOWED_OWNER_EMAILS.map(email => String(email).trim().toLowerCase());
+  if (ownerEmail !== effectiveEmail && !allowedOwners.includes(ownerEmail)) {
+    throw new Error("อีเมลเจ้าของ Sheet ยังไม่ได้รับอนุญาต ให้เพิ่มใน ALLOWED_OWNER_EMAILS และแชร์ Sheet ให้บัญชีที่ Deploy เป็น Editor");
   }
   return SpreadsheetApp.openById(id);
 }
